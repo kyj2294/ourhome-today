@@ -9,6 +9,7 @@ import {
   type AppNotification,
   type Availability,
   AVAILABILITY_LABEL,
+  type FamilyQuestion,
   type FamilyRequest,
   type FamilyState,
   type HistoryEntry,
@@ -20,6 +21,7 @@ import {
   isRequestActive,
   nameOf,
   postOf,
+  questionOf,
   requestOf,
   requestStatusLabel,
   scheduleOf,
@@ -468,6 +470,52 @@ export function cancelSchedule(s: FamilyState, ctx: Ctx, id: string): Outcome {
     (x) => ({ ...x, canceled: true, confirmed: false, history: [...x.history, entry(s, ctx, '일정을 취소했어요')] }),
     (x) => notify(s, ctx, x.audienceIds, `'${x.title}' 일정이 취소됐어요`, { kind: 'schedule', id }),
   )
+}
+
+// ---------------------------------------------------------------------------
+// 안부 질문
+// ---------------------------------------------------------------------------
+
+export interface QuestionDraft {
+  text: string
+  options: string[]
+  targetIds: string[]
+}
+
+export function askQuestion(s: FamilyState, ctx: Ctx, d: QuestionDraft): Outcome {
+  const text = d.text.trim()
+  if (!text) return reject('무엇을 물어볼지 적어 주세요.')
+  const options = [...new Set(d.options.map((o) => o.trim()).filter(Boolean))]
+  if (options.length < 2 || options.length > 3) return reject('답 버튼은 2~3개로 만들어 주세요.')
+  const targets = d.targetIds.filter((id) => id !== s.currentUserId && s.members.some((m) => m.id === id))
+  if (targets.length === 0) return reject('물어볼 가족을 골라 주세요.')
+  const q: FamilyQuestion = { id: ctx.newId('q'), askerId: s.currentUserId, targetIds: targets, text, options, answers: {}, createdAt: ctx.now() }
+  return {
+    ok: true,
+    id: q.id,
+    state: {
+      ...s,
+      questions: [q, ...s.questions],
+      notifications: [...s.notifications, ...notify(s, ctx, targets, `${myName(s)}님이 물어봐요: ${text}`, { kind: 'question', id: q.id })],
+    },
+  }
+}
+
+export function answerQuestion(s: FamilyState, ctx: Ctx, id: string, option: string): Outcome {
+  const me = s.currentUserId
+  const q = questionOf(s, id)
+  if (!q) return reject('질문을 찾을 수 없어요.')
+  if (!q.targetIds.includes(me)) return reject('나에게 온 질문이 아니에요.')
+  if (!q.options.includes(option)) return reject('보기 중에서 골라 주세요.')
+  const updated: FamilyQuestion = { ...q, answers: { ...q.answers, [me]: { option, at: ctx.now() } } }
+  return {
+    ok: true,
+    state: {
+      ...s,
+      questions: s.questions.map((x) => (x.id === id ? updated : x)),
+      notifications: [...s.notifications, ...notify(s, ctx, [q.askerId], `${myName(s)}: "${option}" (${q.text})`, { kind: 'question', id })],
+    },
+  }
 }
 
 // ---------------------------------------------------------------------------

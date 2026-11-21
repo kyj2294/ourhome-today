@@ -6,7 +6,7 @@ import * as R from '../../domain/rules'
 import { useStore } from '../../store/store'
 import { Empty, TopBar } from '../components/common'
 
-const hrefOf = (n: AppNotification) => `/${n.target.kind}/${n.target.id}`
+const hrefOf = (n: AppNotification) => (n.target.kind === 'question' ? '/' : `/${n.target.kind}/${n.target.id}`)
 
 /**
  * 알림 목록. 응답을 요청받았거나 맡은 일에 관련된 변경만 온다.

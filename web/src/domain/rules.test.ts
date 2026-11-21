@@ -137,6 +137,28 @@ describe('오늘 함께할 일', () => {
   })
 })
 
+describe('안부 질문', () => {
+  it('자녀가 묻고 부모님이 버튼으로 답하면 자녀에게 알린다', () => {
+    as(MINSU)
+    const id = idOf(run(R.askQuestion(s, ctx, { text: '약 드셨어요?', options: ['먹었어요', '아직이요', '이따 먹을게요'], targetIds: [MOM] })))
+    expect(s.notifications[s.notifications.length - 1]).toMatchObject({ recipientId: MOM, target: { kind: 'question', id } })
+    as(MOM)
+    expect(run(R.answerQuestion(s, ctx, id, '먹었어요')).ok).toBe(true)
+    expect(s.questions.find((q) => q.id === id)!.answers[MOM].option).toBe('먹었어요')
+    expect(s.notifications[s.notifications.length - 1]).toMatchObject({ recipientId: MINSU, message: '엄마: "먹었어요" (약 드셨어요?)' })
+    // 답을 바꿀 수 있다
+    expect(run(R.answerQuestion(s, ctx, id, '아직이요')).ok).toBe(true)
+  })
+
+  it('답 버튼은 2~3개, 질문받은 사람만 답한다', () => {
+    as(MINSU)
+    expect(R.askQuestion(s, ctx, { text: '약?', options: ['네'], targetIds: [MOM] }).ok).toBe(false)
+    expect(R.askQuestion(s, ctx, { text: '약?', options: ['1', '2', '3', '4'], targetIds: [MOM] }).ok).toBe(false)
+    as(JIEUN)
+    expect(R.answerQuestion(s, ctx, 'q1', '먹었어요').ok).toBe(false)
+  })
+})
+
 describe('구성원', () => {
   it('전화번호를 등록하고 잘못된 번호는 거절한다', () => {
     expect(run(R.setMemberPhone(s, MOM, '010-1234-5678')).ok).toBe(true)

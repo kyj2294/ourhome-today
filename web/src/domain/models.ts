@@ -115,8 +115,41 @@ export interface SchedulePlan {
   createdAt: string
 }
 
+// ---------------------------------------------------------------------------
+// 안부 질문 — "약 드셨어요?" 같은 질문에 버튼 하나로 답한다
+// ---------------------------------------------------------------------------
+
+export interface QuestionAnswer {
+  option: string
+  at: string
+}
+
+export interface FamilyQuestion {
+  id: string
+  askerId: string
+  /** 답해 줄 가족 (보통 부모님) */
+  targetIds: string[]
+  text: string
+  /** 답 버튼 2~3개 */
+  options: string[]
+  answers: Record<string, QuestionAnswer>
+  createdAt: string
+}
+
+/** 질문 빠른 선택 (자녀 화면) */
+export const QUESTION_PRESETS: { icon: string; text: string; options: string[] }[] = [
+  { icon: '💊', text: '약 드셨어요?', options: ['먹었어요', '아직이요', '이따 먹을게요'] },
+  { icon: '🍚', text: '식사하셨어요?', options: ['먹었어요', '아직이요'] },
+  { icon: '😊', text: '오늘 몸은 괜찮으세요?', options: ['괜찮아요', '조금 안 좋아요', '전화해 줘'] },
+  { icon: '🏥', text: '병원 잘 다녀오셨어요?', options: ['잘 다녀왔어요', '아직 안 갔어요'] },
+]
+
+/** 이 답을 고르면 질문한 사람 화면에 전화 버튼을 바로 보여준다 */
+export const CALL_ME_OPTION = '전화해 줘'
+
 export type NotificationTarget =
   | { kind: 'post'; id: string }
+  | { kind: 'question'; id: string }
   | { kind: 'request'; id: string }
   | { kind: 'schedule'; id: string }
 
@@ -141,6 +174,7 @@ export interface FamilyState {
   requests: FamilyRequest[]
   schedules: SchedulePlan[]
   notifications: AppNotification[]
+  questions: FamilyQuestion[]
 }
 
 // ---------------------------------------------------------------------------
@@ -186,6 +220,8 @@ export const needsReconfirm = (p: SchedulePlan, memberId: string) => {
 }
 
 export const scheduleStatusLabel = (p: SchedulePlan) => (p.canceled ? '취소됨' : p.confirmed ? '확정' : '조율 중')
+
+export const questionOf = (s: FamilyState, id?: string) => (id ? s.questions.find((q) => q.id === id) : undefined)
 
 export const myNotifications = (s: FamilyState) =>
   s.notifications.filter((n) => n.recipientId === s.currentUserId).sort((a, b) => b.at.localeCompare(a.at))

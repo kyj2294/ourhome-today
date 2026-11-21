@@ -4,6 +4,7 @@ import { type FamilyState, type Post, memberOf, nameOf, requestOf, scheduleOf } 
 import { useStore } from '../../store/store'
 import { Avatar, PhotoStrip, RequestCard, ScheduleCard, TopBar } from '../components/common'
 import { Icon } from '../components/icons'
+import { AskParentsCard, MyQuestions } from '../components/questions'
 
 /**
  * 가족 소식 (첫 화면)
@@ -16,6 +17,8 @@ export function FeedPage() {
     <>
       <TopBar title="우리집 오늘" subtitle={`${state.familyName} · ${nameOf(state, state.currentUserId)}(으)로 보는 중`} />
       <main className="page list">
+        <AskParentsCard />
+        <MyQuestions s={state} />
         {posts.map((p) => (
           <PostCard key={p.id} post={p} s={state} />
         ))}

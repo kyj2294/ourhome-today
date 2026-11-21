@@ -457,3 +457,13 @@ code { background: var(--surface-2); padding: 2px 8px; border-radius: 6px; font-
 .parent .ai-disclaimer { font-size: 16px; }
 .parent .ai-loading { font-size: 20px; }
 .parent .section { font-size: 22px; }
+
+/* ───────── 안부 질문 ───────── */
+.ask-card { gap: 10px; }
+.chips.wrap { flex-wrap: wrap; overflow: visible; }
+.my-questions { gap: 14px; }
+.q-result { display: flex; flex-direction: column; gap: 6px; }
+.q-result + .q-result { border-top: 1px solid var(--line); padding-top: 12px; }
+.q-result-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.q-answer-row { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.p-question { font-size: 30px; }

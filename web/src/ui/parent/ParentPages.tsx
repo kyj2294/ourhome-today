@@ -19,6 +19,7 @@ import { compressImage } from '../../store/images'
 import { useStore } from '../../store/store'
 import { Avatar, Photo } from '../components/common'
 import { CallButton } from '../components/call'
+import { ParentQuestionAsk } from '../components/questions'
 
 /*
  * 부모님 화면 — 어르신이 쓰기 쉽게
@@ -78,6 +79,7 @@ export function ParentHome() {
   const askRequests = state.requests.filter(
     (r) => r.requesterId !== me && r.audienceIds.includes(me) && (r.status === 'OPEN' || (r.assigneeId === me && (r.status === 'CLAIMED' || r.status === 'IN_PROGRESS'))),
   )
+  const askQuestions = state.questions.filter((q) => q.targetIds.includes(me)).slice(0, 5)
   const myRequests = state.requests.filter((r) => r.requesterId === me && r.status !== 'CANCELED').slice(0, 5)
   const posts = [...state.posts].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10)
   const family = state.members.filter((m) => m.id !== me)
@@ -122,7 +124,10 @@ export function ParentHome() {
         ))}
       </div>
 
-      {(askSchedules.length > 0 || askRequests.length > 0) && <h2 className="p-section">🙋 답해 주세요</h2>}
+      {(askQuestions.length > 0 || askSchedules.length > 0 || askRequests.length > 0) && <h2 className="p-section">🙋 답해 주세요</h2>}
+      {askQuestions.map((q) => (
+        <ParentQuestionAsk key={q.id} q={q} s={state} />
+      ))}
       {askSchedules.map((p) => (
         <ScheduleAsk key={p.id} p={p} s={state} />
       ))}
