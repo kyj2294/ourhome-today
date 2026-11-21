@@ -513,3 +513,69 @@ code { background: var(--surface-2); padding: 2px 8px; border-radius: 6px; font-
 .day-picker button { min-height: 44px; border-radius: 12px; border: 1.5px solid var(--line); background: transparent; font-weight: 800; }
 .day-picker button.on { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
 .modal .mcard { max-width: 320px; align-self: center; width: 100%; }
+
+/* ───────── 하단 탭 5개 ───────── */
+.bottom-nav a { font-size: 12px; padding: 8px 0 10px; }
+
+/* ───────── 달력 ───────── */
+.cal-head { display: flex; align-items: center; gap: 4px; }
+.cal-head b { font-size: 20px; font-weight: 900; min-width: 120px; text-align: center; }
+.cal-head .icon-btn { font-size: 28px; line-height: 1; }
+.cal-today { margin-left: auto; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-week { text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); padding: 4px 0; }
+.sun { color: #d64545; }
+.sat { color: #3b6fd6; }
+.cal-day {
+  aspect-ratio: 1 / 1.05; border: 0; border-radius: 14px; background: var(--surface); padding: 6px 0 4px;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between; font-weight: 700;
+}
+.cal-day.other { opacity: 0.35; }
+.cal-day.today .cal-num { background: var(--primary); color: var(--on-primary); border-radius: 50%; width: 28px; height: 28px; display: grid; place-items: center; }
+.cal-day.selected { outline: 2.5px solid var(--primary); outline-offset: -2.5px; background: var(--primary-soft); }
+.cal-num { font-size: 15px; }
+.cal-dots { display: flex; gap: 3px; min-height: 7px; }
+.cal-dots i, .cal-legend i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.dot-schedule { background: var(--primary); }
+.dot-request { background: #e0b100; }
+.dot-routine { background: #5e8c6a; }
+.cal-legend { display: flex; gap: 14px; font-size: 13px; color: var(--muted); justify-content: center; }
+.cal-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.cal-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.cal-item-time { font-size: 13px; font-weight: 800; color: var(--primary); min-width: 64px; }
+.cal-item-routine { background: var(--green-soft); color: var(--on-green-soft); border-color: transparent; }
+
+/* ───────── 자동화 (알람) ───────── */
+.alarm { background: var(--surface); border-radius: 20px; padding: 14px 16px 6px; display: flex; flex-direction: column; gap: 4px; box-shadow: var(--shadow); }
+.alarm-off { opacity: 0.5; }
+.alarm-readonly { padding-bottom: 14px; box-shadow: none; background: var(--surface-2); }
+.alarm-top { display: flex; align-items: flex-start; gap: 10px; }
+.alarm-main { flex: 1; min-width: 0; text-align: left; border: 0; background: transparent; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.alarm-times { font-size: 26px; font-weight: 900; letter-spacing: -0.02em; }
+.alarm-days { display: flex; gap: 6px; font-size: 14px; font-weight: 800; color: var(--line); }
+.alarm-days .on { color: var(--primary); }
+.alarm-what { font-size: 15px; }
+.alarm .btn-text { min-height: 40px; padding: 0 8px; font-size: 14px; }
+.template-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.template-card { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 14px; border-radius: 16px; border: 1.5px solid var(--line); background: transparent; }
+.wizard-steps { display: flex; list-style: none; margin: 0; padding: 0; gap: 6px; }
+.wizard-steps li { flex: 1; }
+.wizard-steps button { width: 100%; border: 0; border-bottom: 4px solid var(--line); background: transparent; padding: 6px 0; font-weight: 800; color: var(--muted); font-size: 14px; }
+.wizard-steps li.on button { border-color: var(--primary); color: var(--primary); }
+.wizard-steps li.done button { border-color: var(--primary-soft); color: var(--text); }
+.time-input { font-size: 22px; font-weight: 800; }
+.action-choices { display: flex; flex-direction: column; gap: 8px; }
+.action-choice { display: flex; align-items: center; gap: 12px; text-align: left; padding: 14px; border-radius: 16px; border: 2px solid var(--line); background: transparent; }
+.action-choice > span:last-child { display: flex; flex-direction: column; }
+.action-choice.on { border-color: var(--primary); background: var(--primary-soft); color: var(--on-primary-soft); }
+.action-icon { font-size: 28px; }
+.wizard-summary { gap: 6px; }
+
+/* ───────── 부모님: 다가오는 가족 일정 ───────── */
+.p-upcoming { gap: 0; padding: 4px 20px; }
+.p-up-row { display: flex; flex-direction: column; gap: 2px; padding: 16px 0; }
+.p-up-row + .p-up-row { border-top: 2px solid var(--line); }
+.p-up-when { font-size: 22px; font-weight: 900; color: var(--primary); }
+.p-up-title { font-size: 22px; font-weight: 800; }
+.p-up-status { font-size: 18px; font-weight: 700; color: var(--muted); }
+.p-up-status.ok { color: var(--on-green-soft); }

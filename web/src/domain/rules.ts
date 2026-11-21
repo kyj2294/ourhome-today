@@ -19,6 +19,7 @@ import {
   type PurchaseSpec,
   type Role,
   type Routine,
+  REMINDER_OPTION,
   type SchedulePlan,
   isRequestActive,
   nameOf,
@@ -484,14 +485,16 @@ export interface QuestionDraft {
   targetIds: string[]
   card?: CardDesign
   message?: string
+  /** 답이 필요 없는 알림 */
+  reminder?: boolean
 }
 
 /** 질문 입력값 검사·정리 (질문과 자동 안부가 함께 쓴다) */
 function cleanQuestion(s: FamilyState, askerId: string, d: QuestionDraft): { text: string; options: string[]; targets: string[] } | string {
   const text = d.text.trim()
-  if (!text) return '무엇을 물어볼지 적어 주세요.'
-  const options = [...new Set(d.options.map((o) => o.trim()).filter(Boolean))]
-  if (options.length < 2 || options.length > 3) return '답 버튼은 2~3개로 만들어 주세요.'
+  if (!text) return d.reminder ? '알릴 내용을 적어 주세요.' : '무엇을 물어볼지 적어 주세요.'
+  const options = d.reminder ? [REMINDER_OPTION] : [...new Set(d.options.map((o) => o.trim()).filter(Boolean))]
+  if (!d.reminder && (options.length < 2 || options.length > 3)) return '답 버튼은 2~3개로 만들어 주세요.'
   const targets = d.targetIds.filter((id) => id !== askerId && s.members.some((m) => m.id === id))
   if (targets.length === 0) return '물어볼 가족을 골라 주세요.'
   return { text, options, targets }
@@ -509,11 +512,18 @@ function addQuestion(s: FamilyState, ctx: Ctx, askerId: string, d: QuestionDraft
     card: d.card,
     message: d.message?.trim() || undefined,
     routineId,
+    reminder: d.reminder || undefined,
     answers: {},
     createdAt: ctx.now(),
   }
   const asker = nameOf(s, askerId)
-  const msg = routineId ? `${asker}님의 자동 안부: ${q.text}` : d.card ? `${asker}님이 카드를 보냈어요: ${q.text}` : `${asker}님이 물어봐요: ${q.text}`
+  const msg = d.reminder
+    ? `${asker}님의 알림: ${q.text}`
+    : routineId
+      ? `${asker}님의 자동 안부: ${q.text}`
+      : d.card
+        ? `${asker}님이 카드를 보냈어요: ${q.text}`
+        : `${asker}님이 물어봐요: ${q.text}`
   return {
     ok: true,
     id: q.id,
@@ -538,27 +548,39 @@ export interface RoutineDraft extends QuestionDraft {
   times: string[]
 }
 
-export function createRoutine(s: FamilyState, ctx: Ctx, d: RoutineDraft): Outcome {
+function cleanRoutine(s: FamilyState, d: RoutineDraft) {
   const c = cleanQuestion(s, s.currentUserId, d)
-  if (typeof c === 'string') return reject(c)
+  if (typeof c === 'string') return c
   const days = [...new Set(d.days)].filter((x) => x >= 0 && x <= 6).sort()
-  if (days.length === 0) return reject('요일을 하나 이상 골라 주세요.')
+  if (days.length === 0) return '요일을 하나 이상 골라 주세요.'
   const times = [...new Set(d.times.filter((t) => /^\d{2}:\d{2}$/.test(t)))].sort()
-  if (times.length === 0) return reject('보낼 시간을 정해 주세요.')
-  const r: Routine = {
-    id: ctx.newId('rt'),
-    ownerId: s.currentUserId,
+  if (times.length === 0) return '보낼 시간을 정해 주세요.'
+  return {
     targetIds: c.targets,
     text: c.text,
     options: c.options,
     card: d.card,
     message: d.message?.trim() || undefined,
+    reminder: d.reminder || undefined,
     days,
     times,
-    enabled: true,
-    createdAt: ctx.now(),
   }
+}
+
+export function createRoutine(s: FamilyState, ctx: Ctx, d: RoutineDraft): Outcome {
+  const c = cleanRoutine(s, d)
+  if (typeof c === 'string') return reject(c)
+  const r: Routine = { id: ctx.newId('rt'), ownerId: s.currentUserId, ...c, enabled: true, createdAt: ctx.now() }
   return { ok: true, id: r.id, state: { ...s, routines: [...s.routines, r] } }
+}
+
+/** 만든 자동화 고치기. 고친 시점 이전 회차는 보내지 않는다. */
+export function updateRoutine(s: FamilyState, ctx: Ctx, id: string, d: RoutineDraft): Outcome {
+  const r = ownRoutine(s, id)
+  if (typeof r === 'string') return reject(r)
+  const c = cleanRoutine(s, d)
+  if (typeof c === 'string') return reject(c)
+  return { ok: true, id, state: { ...s, routines: s.routines.map((x) => (x.id === id ? { ...x, ...c, lastFiredAt: ctx.now() } : x)) } }
 }
 
 function ownRoutine(s: FamilyState, id: string): Routine | string {

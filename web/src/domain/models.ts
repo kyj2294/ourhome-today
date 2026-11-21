@@ -150,6 +150,8 @@ export interface FamilyQuestion {
   message?: string
   /** 자동 안부(반복)로 보내진 경우 */
   routineId?: string
+  /** 답이 필요 없는 알림 (버튼은 '알겠어요' 하나) */
+  reminder?: boolean
   /** 답해 줄 가족 (보통 부모님) */
   targetIds: string[]
   text: string
@@ -171,6 +173,7 @@ export interface Routine {
   options: string[]
   card?: CardDesign
   message?: string
+  reminder?: boolean
   /** 0(일)~6(토) */
   days: number[]
   /** 'HH:mm' 여러 개 */
@@ -203,6 +206,9 @@ export const QUESTION_PRESETS: { icon: string; text: string; options: string[] }
   { icon: '😊', text: '오늘 몸은 괜찮으세요?', options: ['괜찮아요', '조금 안 좋아요', '전화해 줘'] },
   { icon: '🏥', text: '병원 잘 다녀오셨어요?', options: ['잘 다녀왔어요', '아직 안 갔어요'] },
 ]
+
+/** 알림(답 필요 없음)에 붙는 확인 버튼 */
+export const REMINDER_OPTION = '알겠어요 👍'
 
 /** 이 답을 고르면 질문한 사람 화면에 전화 버튼을 바로 보여준다 */
 export const CALL_ME_OPTION = '전화해 줘'

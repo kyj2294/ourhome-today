@@ -204,6 +204,28 @@ describe('자동 안부', () => {
   })
 })
 
+describe('자동화 — 알림·수정', () => {
+  it('답이 필요 없는 알림은 "알겠어요" 버튼 하나로 보낸다', () => {
+    as(MINSU)
+    const id = idOf(run(R.createRoutine(s, ctx, { text: '💧 물 드실 시간이에요', options: [], reminder: true, targetIds: [MOM], days: [0, 1, 2, 3, 4, 5, 6], times: ['15:00'] })))
+    run(R.fireDueRoutines(s, ctx, new Date(2026, 10, 18, 15, 1)))
+    const q = s.questions.find((x) => x.routineId === id)!
+    expect(q).toMatchObject({ reminder: true, options: ['알겠어요 👍'] })
+    expect(s.notifications[s.notifications.length - 1].message).toBe('민수님의 알림: 💧 물 드실 시간이에요')
+  })
+
+  it('만든 사람은 시간·내용을 고칠 수 있고, 고친 뒤 이전 회차는 보내지 않는다', () => {
+    as(MINSU)
+    const id = idOf(run(R.createRoutine(s, ctx, { text: '약 드셨어요?', options: ['네', '아니요'], targetIds: [MOM], days: [3], times: ['08:00'] })))
+    expect(run(R.updateRoutine(s, ctx, id, { text: '혈압약 드셨어요?', options: ['먹었어요', '아직이요'], targetIds: [MOM, DAD], days: [1, 3], times: ['08:30', '20:00'] })).ok).toBe(true)
+    expect(s.routines.find((r) => r.id === id)).toMatchObject({ text: '혈압약 드셨어요?', targetIds: [MOM, DAD], days: [1, 3], times: ['08:30', '20:00'] })
+    run(R.fireDueRoutines(s, ctx, new Date(2026, 10, 18, 9, 0))) // 고친 시각(09:00) 이전 회차(08:30)는 안 보냄
+    expect(s.questions.filter((q) => q.routineId === id)).toHaveLength(0)
+    as(JIEUN)
+    expect(R.updateRoutine(s, ctx, id, { text: 'x', options: ['a', 'b'], targetIds: [MOM], days: [1], times: ['08:00'] }).ok).toBe(false)
+  })
+})
+
 describe('카드', () => {
   it('카드와 메시지를 담아 보낼 수 있다', () => {
     as(MINSU)

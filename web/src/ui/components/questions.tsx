@@ -128,7 +128,7 @@ export function AskParentsCard() {
           💌 마음 카드
         </button>
         <Link to="/routines" className="btn btn-tonal grow">
-          ⏰ 자동 안부{mine > 0 && ` (${mine})`}
+          ⏰ 자동화{mine > 0 && ` (${mine})`}
         </Link>
       </div>
       {draft && <AskDialog initial={draft.form} cardMode={draft.cardMode} onClose={() => setDraft(null)} />}
@@ -194,9 +194,9 @@ export function MyQuestions({ s }: { s: FamilyState }) {
                 <Avatar member={memberOf(s, t)} size={26} />
                 <span className="grow">{nameOf(s, t)}</span>
                 {a ? (
-                  <Badge tone={a.option === q.options[0] ? 'green' : a.option === CALL_ME_OPTION ? 'red' : 'yellow'}>{a.option}</Badge>
+                  <Badge tone={a.option === q.options[0] ? 'green' : a.option === CALL_ME_OPTION ? 'red' : 'yellow'}>{q.reminder ? '확인했어요' : a.option}</Badge>
                 ) : (
-                  <Badge tone="gray">아직 답 전</Badge>
+                  <Badge tone="gray">{q.reminder ? '아직 확인 전' : '아직 답 전'}</Badge>
                 )}
                 {a?.option === CALL_ME_OPTION && <CallButton memberId={t} className="btn btn-tonal call-small" />}
               </div>
@@ -222,7 +222,7 @@ export function ParentQuestionAsk({ q, s }: { q: FamilyQuestion; s: FamilyState 
       <section className="p-card">
         {q.card && <MessageCard design={q.card} size="sm" />}
         <div className="p-ask-title">{q.text}</div>
-        <p className="p-answered">✓ "{answered.option}"라고 답했어요</p>
+        <p className="p-answered">{q.reminder ? '✓ 확인했어요' : `✓ "${answered.option}"라고 답했어요`}</p>
         <button className="p-btn p-btn-soft" onClick={() => setChanging(true)}>
           답 바꾸기
         </button>
@@ -231,7 +231,9 @@ export function ParentQuestionAsk({ q, s }: { q: FamilyQuestion; s: FamilyState 
   }
   return (
     <section className="p-card p-ask">
-      <div className="p-who">{q.card ? `${josa(who, '이', '가')} 카드를 보냈어요` : `${josa(who, '이', '가')} 물어봐요`}</div>
+      <div className="p-who">
+        {q.reminder ? `🔔 ${josa(who, '이', '가')} 알려 줘요` : q.card ? `${josa(who, '이', '가')} 카드를 보냈어요` : `${josa(who, '이', '가')} 물어봐요`}
+      </div>
       {q.card && <MessageCard design={q.card} message={q.message} from={who} size="lg" />}
       {!isCardOnly && <div className="p-ask-title p-question">{q.text}</div>}
       <div className="p-answers">

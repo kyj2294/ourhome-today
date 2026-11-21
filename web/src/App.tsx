@@ -5,6 +5,7 @@ import { StoreProvider, useStore } from './store/store'
 import { CallProvider } from './ui/components/call'
 import { Icon, type IconName } from './ui/components/icons'
 import { ParentCompose, ParentHome, ParentPost, ParentRequest } from './ui/parent/ParentPages'
+import { CalendarPage } from './ui/pages/CalendarPage'
 import { CallNotePage } from './ui/pages/CallNotePage'
 import { ComposePage } from './ui/pages/ComposePage'
 import { FamilyPage } from './ui/pages/FamilyPage'
@@ -18,9 +19,11 @@ import { ScheduleDetailPage, ScheduleFormPage } from './ui/pages/SchedulePages'
 import { TogetherPage } from './ui/pages/TogetherPage'
 
 const TABS: { to: string; label: string; icon: IconName }[] = [
-  { to: '/', label: '가족 소식', icon: 'home' },
-  { to: '/together', label: '함께할 일', icon: 'together' },
-  { to: '/family', label: '우리 가족', icon: 'family' },
+  { to: '/', label: '소식', icon: 'home' },
+  { to: '/together', label: '할 일', icon: 'list' },
+  { to: '/calendar', label: '달력', icon: 'calendar' },
+  { to: '/routines', label: '자동화', icon: 'alarm' },
+  { to: '/family', label: '가족', icon: 'family' },
 ]
 
 function BottomNav() {
@@ -63,6 +66,7 @@ function ChildApp() {
         <Route path="/schedule/:id" element={<ScheduleDetailPage />} />
         <Route path="/call/:id" element={<CallNotePage />} />
         <Route path="/routines" element={<RoutinesPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
         <Route path="*" element={<FeedPage />} />
       </Routes>
       <BottomNav />

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { upcomingSchedules } from '../../domain/calendar'
 import { formatDateTime, formatRelative, todayKey } from '../../domain/dates'
 import { josa } from '../../domain/korean'
 import {
@@ -83,6 +84,7 @@ export function ParentHome() {
   const myRequests = state.requests.filter((r) => r.requesterId === me && r.status !== 'CANCELED').slice(0, 5)
   const posts = [...state.posts].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10)
   const family = state.members.filter((m) => m.id !== me)
+  const upcoming = upcomingSchedules(state, today)
 
   return (
     <main className="p-home">
@@ -134,6 +136,24 @@ export function ParentHome() {
       {askRequests.map((r) => (
         <RequestAsk key={r.id} r={r} s={state} />
       ))}
+
+      {upcoming.length > 0 && (
+        <>
+          <h2 className="p-section">📅 다가오는 가족 일정</h2>
+          <section className="p-card p-upcoming">
+            {upcoming.map((p) => (
+              <div key={p.id} className="p-up-row">
+                <div className="p-up-when">{formatDateTime(p.startAt)}</div>
+                <div className="p-up-title">
+                  {p.title}
+                  {p.place && <span className="p-muted"> · {p.place}</span>}
+                </div>
+                <div className={`p-up-status ${p.confirmed ? 'ok' : ''}`}>{p.confirmed ? '정해졌어요' : '아직 정하는 중'}</div>
+              </div>
+            ))}
+          </section>
+        </>
+      )}
 
       {myRequests.length > 0 && <h2 className="p-section">🙏 내가 부탁한 것</h2>}
       {myRequests.map((r) => (

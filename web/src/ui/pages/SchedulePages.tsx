@@ -32,7 +32,11 @@ export function ScheduleFormPage() {
   const source = postOf(state, params.get('postId') ?? undefined)
 
   const [title, setTitle] = useState('')
-  const [startAt, setStartAt] = useState(`${addDays(todayKey(), 1)}T12:00`)
+  // 달력에서 날짜를 골라 들어오면 그 날로 채운다
+  const [startAt, setStartAt] = useState(() => {
+    const date = params.get('date')
+    return `${date && date >= todayKey() ? date : addDays(todayKey(), 1)}T12:00`
+  })
   const [place, setPlace] = useState('')
   const [audience, setAudience] = useState(() => otherMemberIds(state))
 
