@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { CARD_DESIGNS, DAY_LABELS, QUESTION_PRESETS, type CardDesign, type Routine, cardOf, describeDays, describeTime, nameOf } from '../../domain/models'
+import { CARD_DESIGNS, DAY_LABELS, QUESTION_PRESETS, type Routine, cardOf, describeDays, describeTime, nameOf } from '../../domain/models'
 import * as R from '../../domain/rules'
 import { useStore } from '../../store/store'
-import { CardPicker, MessageCard } from '../components/cards'
+import { type CardValue, CardSlot } from '../components/cards'
 import { AudiencePicker, Empty, Modal, TopBar } from '../components/common'
-import { defaultTargets } from '../components/questions'
+import { cardFields, cardValueOf, defaultTargets } from '../components/questions'
 
 /*
  * 자동화 (자녀 화면 탭) — 핸드폰 알람처럼
@@ -20,17 +20,16 @@ interface Draft {
   action: Action
   text: string
   options: string[]
-  card?: CardDesign
-  message: string
+  card?: CardValue
   targets: string[]
 }
 
 const ALL = [0, 1, 2, 3, 4, 5, 6]
 const TEMPLATES: { label: string; draft: Omit<Draft, 'targets'> }[] = [
-  { label: '💊 아침·저녁 약 확인', draft: { days: ALL, times: ['08:00', '20:00'], action: 'question', text: '약 드셨어요?', options: [...QUESTION_PRESETS[0].options], card: 'pill', message: cardOf('pill')!.message } },
-  { label: '🍚 점심 식사 확인', draft: { days: ALL, times: ['12:30'], action: 'question', text: '점심 드셨어요?', options: ['먹었어요', '아직이요'], card: 'meal', message: cardOf('meal')!.message } },
-  { label: '💧 물 마실 시간 알림', draft: { days: ALL, times: ['10:00', '15:00'], action: 'reminder', text: '💧 물 한 잔 드실 시간이에요', options: [], message: '' } },
-  { label: '☀️ 평일 아침 응원 카드', draft: { days: [1, 2, 3, 4, 5], times: ['09:00'], action: 'card', text: '힘내세요', options: ['고마워 ❤️', '나도 사랑해 😊'], card: 'cheer', message: cardOf('cheer')!.message } },
+  { label: '💊 아침·저녁 약 확인', draft: { days: ALL, times: ['08:00', '20:00'], action: 'question', text: '약 드셨어요?', options: [...QUESTION_PRESETS[0].options], card: cardValueOf('pill') } },
+  { label: '🍚 점심 식사 확인', draft: { days: ALL, times: ['12:30'], action: 'question', text: '점심 드셨어요?', options: ['먹었어요', '아직이요'], card: cardValueOf('meal') } },
+  { label: '💧 물 마실 시간 알림', draft: { days: ALL, times: ['10:00', '15:00'], action: 'reminder', text: '💧 물 한 잔 드실 시간이에요', options: [] } },
+  { label: '🌙 저녁 잘 자요 카드', draft: { days: ALL, times: ['21:00'], action: 'card', text: '잘 자요', options: ['고마워 ❤️', '나도 사랑해 😊'], card: cardValueOf('night') } },
 ]
 
 const ACTION_INFO: Record<Action, { icon: string; label: string; desc: string }> = {
@@ -51,10 +50,19 @@ export function RoutinesPage() {
     setDraft(
       t
         ? { ...t.draft, days: [...t.draft.days], times: [...t.draft.times], options: [...t.draft.options], targets: defaultTargets(state) }
-        : { days: ALL, times: ['09:00'], action: 'question', text: '', options: ['네', '아니요'], message: '', targets: defaultTargets(state) },
+        : { days: ALL, times: ['09:00'], action: 'question', text: '', options: ['네', '아니요'], targets: defaultTargets(state) },
     )
   const edit = (r: Routine) =>
-    setDraft({ id: r.id, days: [...r.days], times: [...r.times], action: actionOf(r), text: r.text, options: [...r.options], card: r.card, message: r.message ?? '', targets: [...r.targetIds] })
+    setDraft({
+      id: r.id,
+      days: [...r.days],
+      times: [...r.times],
+      action: actionOf(r),
+      text: r.text,
+      options: [...r.options],
+      card: r.card ? { design: r.card, message: r.message ?? '', photo: r.cardPhoto, text: r.cardText } : undefined,
+      targets: [...r.targetIds],
+    })
 
   return (
     <>
@@ -161,22 +169,13 @@ function AutomationWizard({ initial, onClose }: { initial: Draft; onClose: () =>
 
   const chooseAction = (action: Action) => {
     if (action === 'card') {
-      const c = cardOf(d.card) ?? CARD_DESIGNS[2]
-      set({ action, card: c.id, text: c.title, message: d.message || c.message, options: ['고마워 ❤️', '나도 사랑해 😊'] })
+      const card = d.card ?? cardValueOf(CARD_DESIGNS[0].id)!
+      set({ action, card, text: cardOf(card.design)!.title, options: ['고마워 ❤️', '나도 사랑해 😊'] })
     } else if (action === 'reminder') {
       set({ action, card: undefined, text: d.action === 'reminder' ? d.text : '', options: [] })
     } else {
       set({ action, text: d.action === 'question' ? d.text : '', options: d.action === 'question' ? d.options : ['네', '아니요'] })
     }
-  }
-  const pickCard = (card?: CardDesign) => {
-    const prev = cardOf(d.card)
-    const next = cardOf(card)
-    set({
-      card,
-      message: d.message && d.message !== prev?.message ? d.message : (next?.message ?? ''),
-      text: d.action === 'card' ? (next?.title ?? d.text) : d.text,
-    })
   }
 
   const save = () => {
@@ -184,8 +183,7 @@ function AutomationWizard({ initial, onClose }: { initial: Draft; onClose: () =>
       text: d.text,
       options: d.options,
       targetIds: d.targets,
-      card: d.action === 'reminder' ? undefined : d.card,
-      message: d.message,
+      ...cardFields(d.action === 'reminder' ? undefined : d.card),
       reminder: d.action === 'reminder',
       days: d.days,
       times: d.times,
@@ -290,17 +288,13 @@ function AutomationWizard({ initial, onClose }: { initial: Draft; onClose: () =>
           {d.action !== 'reminder' && (
             <div className="field">
               <span>카드 {d.action === 'card' ? '' : '(선택)'}</span>
-              <CardPicker value={d.card} onChange={pickCard} allowNone={d.action !== 'card'} />
+              <CardSlot
+                value={d.card}
+                required={d.action === 'card'}
+                from={nameOf(state, state.currentUserId)}
+                onChange={(card) => set({ card, text: d.action === 'card' && card ? cardOf(card.design)!.title : d.text })}
+              />
             </div>
-          )}
-          {d.card && d.action !== 'reminder' && (
-            <>
-              <MessageCard design={d.card} message={d.message} from={nameOf(state, state.currentUserId)} />
-              <label className="field">
-                <span>카드에 쓸 말</span>
-                <textarea className="input textarea" rows={2} value={d.message} onChange={(e) => set({ message: e.target.value })} />
-              </label>
-            </>
           )}
           {d.action !== 'card' && (
             <label className="field">

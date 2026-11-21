@@ -10,6 +10,7 @@ import {
   type Availability,
   AVAILABILITY_LABEL,
   type CardDesign,
+  type CardTextStyle,
   type FamilyQuestion,
   type FamilyRequest,
   type FamilyState,
@@ -485,6 +486,8 @@ export interface QuestionDraft {
   targetIds: string[]
   card?: CardDesign
   message?: string
+  cardPhoto?: string
+  cardText?: CardTextStyle
   /** 답이 필요 없는 알림 */
   reminder?: boolean
 }
@@ -511,6 +514,8 @@ function addQuestion(s: FamilyState, ctx: Ctx, askerId: string, d: QuestionDraft
     options: c.options,
     card: d.card,
     message: d.message?.trim() || undefined,
+    cardPhoto: d.card === 'photo' ? d.cardPhoto : undefined,
+    cardText: d.card ? d.cardText : undefined,
     routineId,
     reminder: d.reminder || undefined,
     answers: {},
@@ -561,6 +566,8 @@ function cleanRoutine(s: FamilyState, d: RoutineDraft) {
     options: c.options,
     card: d.card,
     message: d.message?.trim() || undefined,
+    cardPhoto: d.card === 'photo' ? d.cardPhoto : undefined,
+    cardText: d.card ? d.cardText : undefined,
     reminder: d.reminder || undefined,
     days,
     times,

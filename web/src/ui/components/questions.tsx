@@ -17,7 +17,7 @@ import {
 import * as R from '../../domain/rules'
 import { useStore } from '../../store/store'
 import { CallButton } from './call'
-import { CardPicker, MessageCard } from './cards'
+import { type CardValue, CardSlot, MessageCard } from './cards'
 import { AudiencePicker, Avatar, Badge, Modal } from './common'
 
 /** 질문 빠른 선택에 어울리는 카드 */
@@ -26,10 +26,18 @@ const PRESET_CARD: Record<string, CardDesign> = { '💊': 'pill', '🍚': 'meal'
 export interface QuestionForm {
   text: string
   options: string[]
-  card?: CardDesign
-  message: string
+  card?: CardValue
   targets: string[]
 }
+
+/** 디자인으로 기본 카드 만들기 */
+export const cardValueOf = (design?: CardDesign): CardValue | undefined => {
+  const c = cardOf(design)
+  return c ? { design: c.id, message: c.message, text: c.text } : undefined
+}
+
+/** 규칙에 넘길 카드 필드 */
+export const cardFields = (c?: CardValue) => ({ card: c?.design, message: c?.message, cardPhoto: c?.photo, cardText: c?.text })
 
 /** 기본 받는 사람: 부모님 (없으면 나 빼고 모두) */
 export function defaultTargets(s: FamilyState): string[] {
@@ -41,30 +49,17 @@ export function defaultTargets(s: FamilyState): string[] {
 export function QuestionFields({ form, setForm, cardMode = false }: { form: QuestionForm; setForm: (f: QuestionForm) => void; cardMode?: boolean }) {
   const { state } = useStore()
   const options = [...form.options, '', ''].slice(0, 3)
-  const pickCard = (card?: CardDesign) => {
-    const prev = cardOf(form.card)
-    const next = cardOf(card)
-    const keepMessage = form.message && form.message !== prev?.message
-    const keepText = form.text && form.text !== prev?.title
-    setForm({
-      ...form,
-      card,
-      message: keepMessage ? form.message : (next?.message ?? ''),
-      text: cardMode && !keepText ? (next?.title ?? form.text) : form.text,
-    })
-  }
   return (
     <>
       <div className="field">
-        <span>카드 {cardMode ? '' : '(선택)'}</span>
-        <CardPicker value={form.card} onChange={pickCard} allowNone={!cardMode} />
+        <span>{cardMode ? '카드' : '카드 (선택)'}</span>
+        <CardSlot
+          value={form.card}
+          required={cardMode}
+          from={nameOf(state, state.currentUserId)}
+          onChange={(card) => setForm({ ...form, card, text: cardMode && card ? cardOf(card.design)!.title : form.text })}
+        />
       </div>
-      {form.card && (
-        <label className="field">
-          <span>카드에 쓸 말</span>
-          <textarea className="input textarea" rows={2} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
-        </label>
-      )}
       {!cardMode && (
         <label className="field">
           <span>질문</span>
@@ -111,19 +106,19 @@ export function AskParentsCard() {
         {QUESTION_PRESETS.map((p) => {
           const card = PRESET_CARD[p.icon]
           return (
-            <button key={p.text} className="chip" onClick={() => open({ text: p.text, options: [...p.options], card, message: cardOf(card)?.message ?? '' })}>
+            <button key={p.text} className="chip" onClick={() => open({ text: p.text, options: [...p.options], card: cardValueOf(card) })}>
               {p.icon} {p.text}
             </button>
           )
         })}
-        <button className="chip" onClick={() => open({ text: '', options: ['네', '아니요'], message: '' })}>
+        <button className="chip" onClick={() => open({ text: '', options: ['네', '아니요'] })}>
           ✏️ 직접 쓰기
         </button>
       </div>
       <div className="row gap8">
         <button
           className="btn btn-tonal grow"
-          onClick={() => open({ text: CARD_DESIGNS[2].title, options: [...CARD_REPLY_OPTIONS], card: 'love', message: CARD_DESIGNS[2].message }, true)}
+          onClick={() => open({ text: CARD_DESIGNS[0].title, options: [...CARD_REPLY_OPTIONS], card: cardValueOf(CARD_DESIGNS[0].id) }, true)}
         >
           💌 마음 카드
         </button>
@@ -142,7 +137,7 @@ function AskDialog({ initial, cardMode, onClose }: { initial: QuestionForm; card
   const send = () => {
     const names = form.targets.map((t) => nameOf(state, t)).join('·')
     const o = run(
-      (s, c) => R.askQuestion(s, c, { text: form.text, options: form.options, targetIds: form.targets, card: form.card, message: form.message }),
+      (s, c) => R.askQuestion(s, c, { text: form.text, options: form.options, targetIds: form.targets, ...cardFields(form.card) }),
       cardMode ? `${names}께 카드를 보냈어요` : `${names}께 물어봤어요`,
     )
     if (o.ok) onClose()
@@ -162,7 +157,6 @@ function AskDialog({ initial, cardMode, onClose }: { initial: QuestionForm; card
         </>
       }
     >
-      {form.card && <MessageCard design={form.card} message={form.message} from={nameOf(state, state.currentUserId)} />}
       <QuestionFields form={form} setForm={setForm} cardMode={cardMode} />
       <p className="hint">부모님 화면에 {form.card ? '카드와 ' : ''}큰 버튼으로 떠요. 하나만 누르면 답이 와요.</p>
     </Modal>
@@ -220,7 +214,7 @@ export function ParentQuestionAsk({ q, s }: { q: FamilyQuestion; s: FamilyState 
   if (answered && !changing) {
     return (
       <section className="p-card">
-        {q.card && <MessageCard design={q.card} size="sm" />}
+        {q.card && <MessageCard design={q.card} photo={q.cardPhoto} size="sm" />}
         <div className="p-ask-title">{q.text}</div>
         <p className="p-answered">{q.reminder ? '✓ 확인했어요' : `✓ "${answered.option}"라고 답했어요`}</p>
         <button className="p-btn p-btn-soft" onClick={() => setChanging(true)}>
@@ -234,7 +228,7 @@ export function ParentQuestionAsk({ q, s }: { q: FamilyQuestion; s: FamilyState 
       <div className="p-who">
         {q.reminder ? `🔔 ${josa(who, '이', '가')} 알려 줘요` : q.card ? `${josa(who, '이', '가')} 카드를 보냈어요` : `${josa(who, '이', '가')} 물어봐요`}
       </div>
-      {q.card && <MessageCard design={q.card} message={q.message} from={who} size="lg" />}
+      {q.card && <MessageCard design={q.card} message={q.message} photo={q.cardPhoto} textStyle={q.cardText} from={who} size="lg" />}
       {!isCardOnly && <div className="p-ask-title p-question">{q.text}</div>}
       <div className="p-answers">
         {q.options.map((o, i) => (

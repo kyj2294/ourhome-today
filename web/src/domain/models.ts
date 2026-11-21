@@ -125,18 +125,44 @@ export interface QuestionAnswer {
 }
 
 /** 카카오톡 선물하기처럼 메시지를 담는 카드 디자인 */
-export type CardDesign = 'pill' | 'meal' | 'love' | 'thanks' | 'cheer' | 'birthday'
+export type CardDesign =
+  | 'pill' | 'meal' | 'love' | 'thanks' | 'cheer' | 'birthday'
+  | 'rain' | 'clover' | 'trip' | 'night' | 'congrats'
+  /** 내가 올린 사진을 배경으로 쓰는 카드 */
+  | 'photo'
 
-export const CARD_DESIGNS: { id: CardDesign; emoji: string; title: string; message: string }[] = [
-  { id: 'pill', emoji: '💊', title: '약 챙기기', message: '오늘도 약 꼭 챙겨 드세요!' },
-  { id: 'meal', emoji: '🍚', title: '든든한 한 끼', message: '식사 거르지 마시고 맛있게 드세요.' },
-  { id: 'love', emoji: '❤️', title: '사랑해요', message: '늘 고맙고 사랑해요.' },
-  { id: 'thanks', emoji: '🌷', title: '고마워요', message: '항상 챙겨 주셔서 고마워요.' },
-  { id: 'cheer', emoji: '☀️', title: '힘내세요', message: '오늘 하루도 기운 내세요!' },
-  { id: 'birthday', emoji: '🎂', title: '축하해요', message: '생신 축하드려요! 건강하세요.' },
+/** 카드 글씨 스타일: 흰 글씨 / 진한 글씨 / 반투명 바탕 */
+export type CardTextStyle = 'light' | 'dark' | 'box'
+
+export interface CardDesignInfo {
+  id: CardDesign
+  emoji: string
+  title: string
+  message: string
+  /** 기본 글씨 스타일 */
+  text: CardTextStyle
+  /** 그림 옆 손글씨 장식 */
+  script?: string
+}
+
+export const CARD_DESIGNS: CardDesignInfo[] = [
+  { id: 'pill', emoji: '💊', title: '약 챙기기', message: '엄마 아침약은 9시에 꼭 챙겨 드셔야 해요', text: 'light', script: 'Take care ♡' },
+  { id: 'rain', emoji: '☔', title: '우산 챙기세요', message: '오늘 낮에 비가 온대요. 우산 챙기시고 행복한 하루 되세요', text: 'light' },
+  { id: 'clover', emoji: '🍀', title: '행운 가득', message: '저녁 잘 드시고 따뜻하게 주무세요. 네잎클로버 보내요', text: 'dark', script: 'GOOD LUCK' },
+  { id: 'trip', emoji: '🚗', title: '여행 가요', message: '날이 따뜻해지면 여행 가요. 어디 갈까요?', text: 'dark', script: "Let's go!" },
+  { id: 'thanks', emoji: '💐', title: '고마워요', message: '항상 챙겨 주셔서 고마워요', text: 'light', script: 'Thank you ♡' },
+  { id: 'love', emoji: '❤️', title: '사랑해요', message: '늘 고맙고 사랑해요', text: 'light', script: 'Love you' },
+  { id: 'meal', emoji: '🍚', title: '든든한 한 끼', message: '식사 거르지 마시고 맛있게 드세요', text: 'dark', script: 'Bon appétit' },
+  { id: 'cheer', emoji: '☀️', title: '힘내세요', message: '오늘 하루도 기운 내세요!', text: 'dark', script: 'Have a nice day' },
+  { id: 'night', emoji: '🌙', title: '잘 자요', message: '오늘도 수고 많으셨어요. 푹 주무세요', text: 'light', script: 'Good night' },
+  { id: 'birthday', emoji: '🎂', title: '생신 축하해요', message: '생신 축하드려요! 늘 건강하세요', text: 'dark', script: 'Happy Birthday' },
+  { id: 'congrats', emoji: '🎉', title: '축하해요', message: '정말 축하드려요!', text: 'dark', script: 'Congratulations' },
 ]
 
-export const cardOf = (id?: CardDesign) => CARD_DESIGNS.find((c) => c.id === id)
+/** 내 사진 카드 (목록 맨 앞 '📷 내 사진'으로 고른다) */
+export const PHOTO_CARD: CardDesignInfo = { id: 'photo', emoji: '📷', title: '사진 카드', message: '', text: 'light' }
+
+export const cardOf = (id?: CardDesign) => (id === 'photo' ? PHOTO_CARD : CARD_DESIGNS.find((c) => c.id === id))
 
 /** 마음 카드(질문 없이 보내는 카드)에 붙는 답 버튼 */
 export const CARD_REPLY_OPTIONS = ['고마워 ❤️', '나도 사랑해 😊']
@@ -148,6 +174,9 @@ export interface FamilyQuestion {
   card?: CardDesign
   /** 카드 메시지 */
   message?: string
+  /** 사진 카드의 사진 (data URL) */
+  cardPhoto?: string
+  cardText?: CardTextStyle
   /** 자동 안부(반복)로 보내진 경우 */
   routineId?: string
   /** 답이 필요 없는 알림 (버튼은 '알겠어요' 하나) */
@@ -173,6 +202,8 @@ export interface Routine {
   options: string[]
   card?: CardDesign
   message?: string
+  cardPhoto?: string
+  cardText?: CardTextStyle
   reminder?: boolean
   /** 0(일)~6(토) */
   days: number[]

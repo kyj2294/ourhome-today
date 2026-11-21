@@ -227,6 +227,12 @@ describe('자동화 — 알림·수정', () => {
 })
 
 describe('카드', () => {
+  it('내 사진 카드는 사진과 글씨 스타일을 함께 보낸다', () => {
+    as(MINSU)
+    const id = idOf(run(R.askQuestion(s, ctx, { text: '사진 카드', options: ['고마워 ❤️', '나도 사랑해 😊'], targetIds: [MOM], card: 'photo', cardPhoto: 'data:image/jpeg;base64,xx', cardText: 'box', message: '엄마 졸업식에 와 주셔서 감사해요' })))
+    expect(s.questions.find((q) => q.id === id)).toMatchObject({ card: 'photo', cardPhoto: 'data:image/jpeg;base64,xx', cardText: 'box' })
+  })
+
   it('카드와 메시지를 담아 보낼 수 있다', () => {
     as(MINSU)
     const id = idOf(run(R.askQuestion(s, ctx, { text: '사랑해요', options: ['고마워 ❤️', '나도 사랑해 😊'], targetIds: [MOM], card: 'love', message: '엄마 사랑해요' })))
