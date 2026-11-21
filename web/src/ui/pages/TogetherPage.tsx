@@ -15,10 +15,20 @@ const EMPTY: Record<TogetherFilter, string> = {
 /** 오늘 함께할 일: 일정과 부탁을 '응답 대기 · 오늘 · 진행 중'으로 찾는다. */
 export function TogetherPage() {
   const { state } = useStore()
-  const [filter, setFilter] = useState<TogetherFilter>(() => (sessionStorage.getItem('together-filter') as TogetherFilter) || 'AWAITING')
+  const [filter, setFilter] = useState<TogetherFilter>(() => {
+    try {
+      return (sessionStorage.getItem('together-filter') as TogetherFilter) || 'AWAITING'
+    } catch {
+      return 'AWAITING'
+    }
+  })
   const choose = (f: TogetherFilter) => {
     setFilter(f)
-    sessionStorage.setItem('together-filter', f)
+    try {
+      sessionStorage.setItem('together-filter', f)
+    } catch {
+      /* 저장 불가 환경은 무시 */
+    }
   }
   const items = togetherItems(state, filter, todayKey())
   const counts = Object.fromEntries(TOGETHER_FILTERS.map((f) => [f.key, togetherItems(state, f.key, todayKey()).length]))
