@@ -53,7 +53,25 @@ describe('통화 메모 정리', () => {
     expect(s).toEqual([expect.objectContaining({ kind: 'request', purchase: false })])
   })
 
+  it('식사·회사 같은 낱말을 "사다"로 오해하지 않는다', () => {
+    expect(extractFromCallNote('회사 끝나고 전화할게', NOW)).toEqual([])
+    expect(extractFromCallNote('내일 저녁 식사', NOW)[0].title).toBe('식사')
+  })
+
   it('정한 게 없으면 빈 목록', () => {
     expect(extractFromCallNote('그냥 안부 전화했어 잘 지내', NOW)).toEqual([])
+  })
+})
+
+describe('AI 통화 요약 예시 대본', () => {
+  it('대본마다 일정·부탁이 제대로 뽑힌다', async () => {
+    const { demoCallScript } = await import('./demoCall')
+    const { sampleState } = await import('./sample')
+    const [mom, dad, minsu, jieun] = sampleState(NOW).members
+    const pick = (a: typeof mom, b: typeof mom) => extractFromCallNote(demoCallScript(a, b).note, NOW).map((s) => [s.kind, s.title, s.startAt ?? s.purchase])
+    expect(pick(mom, minsu)).toEqual([['schedule', '김장', '2026-11-21T14:00'], ['request', '고무장갑 사기', true]])
+    expect(pick(minsu, mom)).toEqual([['schedule', '병원 같이 가기', '2026-11-23T10:00'], ['request', '신분증이랑 약봉투 챙기기', false]])
+    expect(pick(minsu, jieun)).toEqual([['schedule', '생신 식사', '2026-12-03T18:00'], ['request', '케이크 주문', true]])
+    expect(pick(mom, dad)).toEqual([['schedule', '장 보러 가기', '2026-11-19T10:00']])
   })
 })
