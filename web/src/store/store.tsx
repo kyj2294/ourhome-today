@@ -1,7 +1,7 @@
 import { del, get, set } from 'idb-keyval'
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { FamilyState } from '../domain/models'
-import type { Ctx, Outcome } from '../domain/rules'
+import { type Ctx, type Outcome, fireDueRoutines } from '../domain/rules'
 import { SCHEMA_VERSION, sampleState } from '../domain/sample'
 
 /**
@@ -130,6 +130,27 @@ export function StoreProvider({ children, onToast }: { children: ReactNode; onTo
     },
     [commit, onToast],
   )
+
+  // 자동 안부: 열 때, 30초마다, 다시 돌아왔을 때 시간이 된 것을 보낸다.
+  // (실제 서비스에서는 서버가 정한 시각에 푸시로 보낸다)
+  const loaded = state !== null
+  useEffect(() => {
+    if (!loaded) return
+    const tick = () => {
+      const current = ref.current
+      if (!current) return
+      const o = fireDueRoutines(current, ctx, new Date())
+      if (o.ok && o.state !== current) commit(o.state, true)
+    }
+    tick()
+    const timer = window.setInterval(tick, 30_000)
+    const onVisible = () => document.visibilityState === 'visible' && tick()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [loaded, commit])
 
   const resetDemo = useCallback(async () => {
     await del(DB_KEY).catch(() => undefined)

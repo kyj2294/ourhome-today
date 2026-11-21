@@ -467,3 +467,49 @@ code { background: var(--surface-2); padding: 2px 8px; border-radius: 6px; font-
 .q-result-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .q-answer-row { display: flex; align-items: center; gap: 8px; font-size: 15px; }
 .p-question { font-size: 30px; }
+
+/* ───────── 메시지 카드 (선물하기 카드처럼) ───────── */
+.mcard {
+  position: relative; overflow: hidden; border-radius: 22px; color: #3b2a20;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  padding: 26px 20px 20px; gap: 6px; aspect-ratio: 4 / 3; isolation: isolate;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.5), 0 6px 18px rgb(61 44 34 / 0.12);
+}
+.mcard::before, .mcard::after { content: ''; position: absolute; border-radius: 50%; z-index: -1; background: rgb(255 255 255 / 0.35); }
+.mcard::before { width: 60%; aspect-ratio: 1; top: -22%; right: -14%; }
+.mcard::after { width: 42%; aspect-ratio: 1; bottom: -16%; left: -10%; background: rgb(255 255 255 / 0.25); }
+.mcard-emoji { font-size: 56px; line-height: 1; filter: drop-shadow(0 4px 6px rgb(0 0 0 / 0.12)); }
+.mcard-title { font-size: 24px; font-weight: 900; letter-spacing: -0.02em; }
+.mcard-msg { font-size: 17px; font-weight: 600; line-height: 1.5; max-width: 90%; white-space: pre-wrap; }
+.mcard-from { font-size: 14px; font-weight: 700; opacity: 0.7; margin-top: 4px; }
+.mcard-lg .mcard-emoji { font-size: 72px; }
+.mcard-lg .mcard-title { font-size: 30px; }
+.mcard-lg .mcard-msg { font-size: 21px; }
+.mcard-lg .mcard-from { font-size: 17px; }
+.mcard-sm { width: 96px; aspect-ratio: 1; padding: 10px 6px; border-radius: 16px; gap: 2px; flex: none; }
+.mcard-sm .mcard-emoji { font-size: 30px; }
+.mcard-sm .mcard-title { font-size: 12px; }
+.mcard-pill { background: linear-gradient(145deg, #d5f5e9, #a8e6cf); }
+.mcard-meal { background: linear-gradient(145deg, #fff3c4, #ffd98a); }
+.mcard-love { background: linear-gradient(145deg, #ffe0e6, #ffb3c4); }
+.mcard-thanks { background: linear-gradient(145deg, #ece4ff, #cdb8ff); }
+.mcard-cheer { background: linear-gradient(145deg, #dff1ff, #a9d8ff); }
+.mcard-birthday { background: linear-gradient(145deg, #ffe5d0, #ffbf94); }
+.mcard-birthday::after { background: radial-gradient(circle, rgb(255 255 255 / 0.5) 20%, transparent 21%) 0 0 / 14px 14px; border-radius: 0; width: 100%; height: 100%; inset: 0; }
+
+.card-picker { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 6px; }
+.card-pick { flex: none; border: 3px solid transparent; border-radius: 20px; padding: 0; background: transparent; }
+.card-pick.on { border-color: var(--primary); }
+.card-none { width: 102px; height: 102px; border: 2px dashed var(--line); font-size: 14px; font-weight: 700; color: var(--muted); }
+.card-none.on { border: 3px solid var(--primary); color: var(--primary); }
+
+/* ───────── 자동 안부 ───────── */
+.routine { gap: 10px; }
+.routine-off { opacity: 0.55; }
+.routine-when { font-size: 20px; font-weight: 900; }
+.routine-body { display: flex; align-items: center; gap: 12px; }
+.template-btn { justify-content: flex-start; text-align: left; }
+.day-picker { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.day-picker button { min-height: 44px; border-radius: 12px; border: 1.5px solid var(--line); background: transparent; font-weight: 800; }
+.day-picker button.on { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.modal .mcard { max-width: 320px; align-self: center; width: 100%; }

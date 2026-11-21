@@ -6,7 +6,7 @@ export const DAD = 'm_dad'
 export const MINSU = 'm_minsu'
 export const JIEUN = 'm_jieun'
 
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 /**
  * 시연용 샘플 데이터. 기획서의 '정수기 필터 부탁' 이용 흐름을 재현한다.
@@ -134,10 +134,29 @@ export function sampleState(now: Date = new Date()): FamilyState {
         id: 'q1',
         askerId: JIEUN,
         targetIds: [MOM, DAD],
+        card: 'pill',
+        message: '엄마 아빠, 오늘도 약 꼭 챙겨 드세요!',
         text: '오늘 혈압약 드셨어요?',
         options: ['먹었어요', '아직이요', '이따 먹을게요'],
         answers: { [DAD]: { option: '먹었어요', at: ago(0.5) } },
         createdAt: ago(1),
+      },
+    ],
+    // 자동 안부: 지은이 매일 아침 8시·저녁 8시에 약 확인
+    routines: [
+      {
+        id: 'rt1',
+        ownerId: JIEUN,
+        targetIds: [MOM, DAD],
+        text: '약 드셨어요?',
+        options: ['먹었어요', '아직이요', '이따 먹을게요'],
+        card: 'pill',
+        message: '오늘도 약 꼭 챙겨 드세요!',
+        days: [0, 1, 2, 3, 4, 5, 6],
+        times: ['08:00', '20:00'],
+        enabled: true,
+        lastFiredAt: now.toISOString(),
+        createdAt: ago(72),
       },
     ],
   }

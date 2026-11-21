@@ -124,9 +124,32 @@ export interface QuestionAnswer {
   at: string
 }
 
+/** 카카오톡 선물하기처럼 메시지를 담는 카드 디자인 */
+export type CardDesign = 'pill' | 'meal' | 'love' | 'thanks' | 'cheer' | 'birthday'
+
+export const CARD_DESIGNS: { id: CardDesign; emoji: string; title: string; message: string }[] = [
+  { id: 'pill', emoji: '💊', title: '약 챙기기', message: '오늘도 약 꼭 챙겨 드세요!' },
+  { id: 'meal', emoji: '🍚', title: '든든한 한 끼', message: '식사 거르지 마시고 맛있게 드세요.' },
+  { id: 'love', emoji: '❤️', title: '사랑해요', message: '늘 고맙고 사랑해요.' },
+  { id: 'thanks', emoji: '🌷', title: '고마워요', message: '항상 챙겨 주셔서 고마워요.' },
+  { id: 'cheer', emoji: '☀️', title: '힘내세요', message: '오늘 하루도 기운 내세요!' },
+  { id: 'birthday', emoji: '🎂', title: '축하해요', message: '생신 축하드려요! 건강하세요.' },
+]
+
+export const cardOf = (id?: CardDesign) => CARD_DESIGNS.find((c) => c.id === id)
+
+/** 마음 카드(질문 없이 보내는 카드)에 붙는 답 버튼 */
+export const CARD_REPLY_OPTIONS = ['고마워 ❤️', '나도 사랑해 😊']
+
 export interface FamilyQuestion {
   id: string
   askerId: string
+  /** 카드에 담아 보낸 경우 */
+  card?: CardDesign
+  /** 카드 메시지 */
+  message?: string
+  /** 자동 안부(반복)로 보내진 경우 */
+  routineId?: string
   /** 답해 줄 가족 (보통 부모님) */
   targetIds: string[]
   text: string
@@ -134,6 +157,43 @@ export interface FamilyQuestion {
   options: string[]
   answers: Record<string, QuestionAnswer>
   createdAt: string
+}
+
+/**
+ * 자동 안부 — 알람처럼 정한 요일·시간에 질문을 보낸다.
+ * 서버가 없는 프로토타입에서는 앱이 열려 있거나 다음에 열릴 때 보낸다(밀린 건 가장 최근 1번만).
+ */
+export interface Routine {
+  id: string
+  ownerId: string
+  targetIds: string[]
+  text: string
+  options: string[]
+  card?: CardDesign
+  message?: string
+  /** 0(일)~6(토) */
+  days: number[]
+  /** 'HH:mm' 여러 개 */
+  times: string[]
+  enabled: boolean
+  /** 마지막으로 보낸 회차의 예정 시각 (ISO) */
+  lastFiredAt?: string
+  createdAt: string
+}
+
+export const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
+
+export function describeDays(days: number[]): string {
+  const set = [...new Set(days)].sort()
+  if (set.length === 7) return '매일'
+  if (set.join() === '1,2,3,4,5') return '평일'
+  if (set.join() === '0,6') return '주말'
+  return [...set.filter((d) => d !== 0), ...set.filter((d) => d === 0)].map((d) => DAY_LABELS[d]).join('·')
+}
+
+export function describeTime(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number)
+  return `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}시${m ? ` ${m}분` : ''}`
 }
 
 /** 질문 빠른 선택 (자녀 화면) */
@@ -175,6 +235,7 @@ export interface FamilyState {
   schedules: SchedulePlan[]
   notifications: AppNotification[]
   questions: FamilyQuestion[]
+  routines: Routine[]
 }
 
 // ---------------------------------------------------------------------------

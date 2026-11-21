@@ -9,6 +9,7 @@ import {
   type AppNotification,
   type Availability,
   AVAILABILITY_LABEL,
+  type CardDesign,
   type FamilyQuestion,
   type FamilyRequest,
   type FamilyState,
@@ -17,6 +18,7 @@ import {
   type Post,
   type PurchaseSpec,
   type Role,
+  type Routine,
   type SchedulePlan,
   isRequestActive,
   nameOf,
@@ -480,25 +482,143 @@ export interface QuestionDraft {
   text: string
   options: string[]
   targetIds: string[]
+  card?: CardDesign
+  message?: string
 }
 
-export function askQuestion(s: FamilyState, ctx: Ctx, d: QuestionDraft): Outcome {
+/** 질문 입력값 검사·정리 (질문과 자동 안부가 함께 쓴다) */
+function cleanQuestion(s: FamilyState, askerId: string, d: QuestionDraft): { text: string; options: string[]; targets: string[] } | string {
   const text = d.text.trim()
-  if (!text) return reject('무엇을 물어볼지 적어 주세요.')
+  if (!text) return '무엇을 물어볼지 적어 주세요.'
   const options = [...new Set(d.options.map((o) => o.trim()).filter(Boolean))]
-  if (options.length < 2 || options.length > 3) return reject('답 버튼은 2~3개로 만들어 주세요.')
-  const targets = d.targetIds.filter((id) => id !== s.currentUserId && s.members.some((m) => m.id === id))
-  if (targets.length === 0) return reject('물어볼 가족을 골라 주세요.')
-  const q: FamilyQuestion = { id: ctx.newId('q'), askerId: s.currentUserId, targetIds: targets, text, options, answers: {}, createdAt: ctx.now() }
+  if (options.length < 2 || options.length > 3) return '답 버튼은 2~3개로 만들어 주세요.'
+  const targets = d.targetIds.filter((id) => id !== askerId && s.members.some((m) => m.id === id))
+  if (targets.length === 0) return '물어볼 가족을 골라 주세요.'
+  return { text, options, targets }
+}
+
+function addQuestion(s: FamilyState, ctx: Ctx, askerId: string, d: QuestionDraft, routineId?: string): Outcome {
+  const c = cleanQuestion(s, askerId, d)
+  if (typeof c === 'string') return reject(c)
+  const q: FamilyQuestion = {
+    id: ctx.newId('q'),
+    askerId,
+    targetIds: c.targets,
+    text: c.text,
+    options: c.options,
+    card: d.card,
+    message: d.message?.trim() || undefined,
+    routineId,
+    answers: {},
+    createdAt: ctx.now(),
+  }
+  const asker = nameOf(s, askerId)
+  const msg = routineId ? `${asker}님의 자동 안부: ${q.text}` : d.card ? `${asker}님이 카드를 보냈어요: ${q.text}` : `${asker}님이 물어봐요: ${q.text}`
   return {
     ok: true,
     id: q.id,
     state: {
       ...s,
       questions: [q, ...s.questions],
-      notifications: [...s.notifications, ...notify(s, ctx, targets, `${myName(s)}님이 물어봐요: ${text}`, { kind: 'question', id: q.id })],
+      notifications: [...s.notifications, ...notify(s, ctx, c.targets, msg, { kind: 'question', id: q.id })],
     },
   }
+}
+
+export function askQuestion(s: FamilyState, ctx: Ctx, d: QuestionDraft): Outcome {
+  return addQuestion(s, ctx, s.currentUserId, d)
+}
+
+// ---------------------------------------------------------------------------
+// 자동 안부 (반복 질문)
+// ---------------------------------------------------------------------------
+
+export interface RoutineDraft extends QuestionDraft {
+  days: number[]
+  times: string[]
+}
+
+export function createRoutine(s: FamilyState, ctx: Ctx, d: RoutineDraft): Outcome {
+  const c = cleanQuestion(s, s.currentUserId, d)
+  if (typeof c === 'string') return reject(c)
+  const days = [...new Set(d.days)].filter((x) => x >= 0 && x <= 6).sort()
+  if (days.length === 0) return reject('요일을 하나 이상 골라 주세요.')
+  const times = [...new Set(d.times.filter((t) => /^\d{2}:\d{2}$/.test(t)))].sort()
+  if (times.length === 0) return reject('보낼 시간을 정해 주세요.')
+  const r: Routine = {
+    id: ctx.newId('rt'),
+    ownerId: s.currentUserId,
+    targetIds: c.targets,
+    text: c.text,
+    options: c.options,
+    card: d.card,
+    message: d.message?.trim() || undefined,
+    days,
+    times,
+    enabled: true,
+    createdAt: ctx.now(),
+  }
+  return { ok: true, id: r.id, state: { ...s, routines: [...s.routines, r] } }
+}
+
+function ownRoutine(s: FamilyState, id: string): Routine | string {
+  const r = s.routines.find((x) => x.id === id)
+  if (!r) return '자동 안부를 찾을 수 없어요.'
+  if (r.ownerId !== s.currentUserId) return '내가 만든 자동 안부만 바꿀 수 있어요.'
+  return r
+}
+
+export function setRoutineEnabled(s: FamilyState, ctx: Ctx, id: string, enabled: boolean): Outcome {
+  const r = ownRoutine(s, id)
+  if (typeof r === 'string') return reject(r)
+  // 다시 켤 때는 밀린 회차를 보내지 않도록 기준 시각을 지금으로 맞춘다
+  return { ok: true, state: { ...s, routines: s.routines.map((x) => (x.id === id ? { ...x, enabled, ...(enabled ? { lastFiredAt: ctx.now() } : {}) } : x)) } }
+}
+
+export function deleteRoutine(s: FamilyState, id: string): Outcome {
+  const r = ownRoutine(s, id)
+  if (typeof r === 'string') return reject(r)
+  return { ok: true, state: { ...s, routines: s.routines.filter((x) => x.id !== id) } }
+}
+
+/** 지금 한 번 보내 보기 */
+export function sendRoutineNow(s: FamilyState, ctx: Ctx, id: string): Outcome {
+  const r = ownRoutine(s, id)
+  if (typeof r === 'string') return reject(r)
+  return addQuestion(s, ctx, r.ownerId, r, r.id)
+}
+
+/** now 이전(같은 시각 포함)의 가장 최근 예정 회차 */
+export function latestOccurrence(r: Routine, now: Date): Date | null {
+  for (let back = 0; back <= 7; back++) {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() - back)
+    if (!r.days.includes(day.getDay())) continue
+    const times = [...r.times].sort().reverse()
+    for (const t of times) {
+      const [h, m] = t.split(':').map(Number)
+      const at = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, m)
+      if (at <= now) return at
+    }
+  }
+  return null
+}
+
+/** 시간이 된 자동 안부를 보낸다. 밀린 회차는 가장 최근 1번만 보낸다. */
+export function fireDueRoutines(s: FamilyState, ctx: Ctx, now: Date): Outcome {
+  let state = s
+  let fired = 0
+  for (const r of s.routines) {
+    if (!r.enabled) continue
+    const occ = latestOccurrence(r, now)
+    if (!occ) continue
+    const since = new Date(r.lastFiredAt ?? r.createdAt)
+    if (occ <= since) continue
+    const o = addQuestion(state, ctx, r.ownerId, r, r.id)
+    if (!o.ok) continue
+    state = { ...o.state, routines: o.state.routines.map((x) => (x.id === r.id ? { ...x, lastFiredAt: occ.toISOString() } : x)) }
+    fired++
+  }
+  return { ok: true, state: fired ? state : s, id: String(fired) }
 }
 
 export function answerQuestion(s: FamilyState, ctx: Ctx, id: string, option: string): Outcome {

@@ -159,6 +159,60 @@ describe('안부 질문', () => {
   })
 })
 
+describe('자동 안부', () => {
+  const at = (d: number, h: number, m = 0) => new Date(2026, 10, d, h, m)
+  const make = () => {
+    as(MINSU)
+    return idOf(run(R.createRoutine(s, ctx, { text: '식사하셨어요?', options: ['먹었어요', '아직이요'], targetIds: [MOM], days: [1, 2, 3, 4, 5], times: ['12:30', '18:00'] })))
+  }
+
+  it('가장 최근 예정 회차를 계산한다 (평일 12:30, 18:00)', () => {
+    const id = make()
+    const r = s.routines.find((x) => x.id === id)!
+    expect(R.latestOccurrence(r, at(18, 13))).toEqual(at(18, 12, 30)) // 수 13시 → 수 12:30
+    expect(R.latestOccurrence(r, at(18, 9))).toEqual(at(17, 18)) // 수 9시 → 화 18:00
+    expect(R.latestOccurrence(r, at(22, 10))).toEqual(at(20, 18)) // 일요일 → 금 18:00
+  })
+
+  it('시간이 되면 한 번만 보내고, 밀린 회차는 가장 최근 1번만 보낸다', () => {
+    const id = make() // 18일(수) 09:00에 만듦
+    const fire = (d: Date) => run(R.fireDueRoutines(s, ctx, d))
+    fire(at(18, 12, 0))
+    expect(s.questions.filter((q) => q.routineId === id)).toHaveLength(0) // 아직 시간 전
+    fire(at(18, 12, 31))
+    expect(s.questions.filter((q) => q.routineId === id)).toHaveLength(1)
+    fire(at(18, 12, 45))
+    expect(s.questions.filter((q) => q.routineId === id)).toHaveLength(1) // 같은 회차는 다시 안 보냄
+    fire(at(20, 19, 0)) // 이틀 동안 안 열다가 금요일 저녁에 열면
+    expect(s.questions.filter((q) => q.routineId === id)).toHaveLength(2) // 1번만 더
+    const q = s.questions.find((x) => x.routineId === id)!
+    expect(q).toMatchObject({ askerId: MINSU, targetIds: [MOM], text: '식사하셨어요?' })
+  })
+
+  it('꺼 두면 보내지 않고, 다시 켜도 밀린 회차는 보내지 않는다', () => {
+    const id = make()
+    run(R.setRoutineEnabled(s, ctx, id, false))
+    run(R.fireDueRoutines(s, ctx, at(18, 13)))
+    expect(s.questions.filter((q) => q.routineId === id)).toHaveLength(0)
+  })
+
+  it('요일·시간이 없거나 남의 자동 안부는 거절한다', () => {
+    as(MINSU)
+    expect(R.createRoutine(s, ctx, { text: '약?', options: ['네', '아니요'], targetIds: [MOM], days: [], times: ['08:00'] }).ok).toBe(false)
+    expect(R.createRoutine(s, ctx, { text: '약?', options: ['네', '아니요'], targetIds: [MOM], days: [1], times: [] }).ok).toBe(false)
+    expect(R.deleteRoutine(s, 'rt1').ok).toBe(false) // 지은이 만든 것
+  })
+})
+
+describe('카드', () => {
+  it('카드와 메시지를 담아 보낼 수 있다', () => {
+    as(MINSU)
+    const id = idOf(run(R.askQuestion(s, ctx, { text: '사랑해요', options: ['고마워 ❤️', '나도 사랑해 😊'], targetIds: [MOM], card: 'love', message: '엄마 사랑해요' })))
+    expect(s.questions.find((q) => q.id === id)).toMatchObject({ card: 'love', message: '엄마 사랑해요' })
+    expect(s.notifications[s.notifications.length - 1].message).toBe('민수님이 카드를 보냈어요: 사랑해요')
+  })
+})
+
 describe('구성원', () => {
   it('전화번호를 등록하고 잘못된 번호는 거절한다', () => {
     expect(run(R.setMemberPhone(s, MOM, '010-1234-5678')).ok).toBe(true)

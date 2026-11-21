@@ -13,6 +13,7 @@ import { NotificationsPage } from './ui/pages/NotificationsPage'
 import { OnboardingPage } from './ui/pages/OnboardingPage'
 import { PostDetailPage } from './ui/pages/PostDetailPage'
 import { RequestDetailPage, RequestFormPage } from './ui/pages/RequestPages'
+import { RoutinesPage } from './ui/pages/RoutinesPage'
 import { ScheduleDetailPage, ScheduleFormPage } from './ui/pages/SchedulePages'
 import { TogetherPage } from './ui/pages/TogetherPage'
 
@@ -61,6 +62,7 @@ function ChildApp() {
         <Route path="/schedule/new" element={<ScheduleFormPage />} />
         <Route path="/schedule/:id" element={<ScheduleDetailPage />} />
         <Route path="/call/:id" element={<CallNotePage />} />
+        <Route path="/routines" element={<RoutinesPage />} />
         <Route path="*" element={<FeedPage />} />
       </Routes>
       <BottomNav />
