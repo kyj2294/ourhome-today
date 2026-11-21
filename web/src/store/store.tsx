@@ -59,12 +59,17 @@ export function StoreProvider({ children, onToast }: { children: ReactNode; onTo
   const [state, setState] = useState<FamilyState | null>(null)
   const ref = useRef<FamilyState | null>(null)
   const channel = useRef<BroadcastChannel | null>(null)
+  const warnedSave = useRef(false)
 
   const commit = useCallback((next: FamilyState, broadcast = true) => {
     ref.current = next
     setState(next)
     writeTabUser(next.currentUserId)
-    set(DB_KEY, next).catch(() => onToast('저장 공간이 부족해 변경 사항을 저장하지 못했어요.'))
+    set(DB_KEY, next).catch(() => {
+      if (warnedSave.current) return
+      warnedSave.current = true
+      onToast('이 브라우저에서는 저장이 안 돼요. 새로고침하면 처음 상태로 돌아가요.')
+    })
     if (broadcast) channel.current?.postMessage(next)
   }, [onToast])
 

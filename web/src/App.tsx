@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { StoreProvider } from './store/store'
 import { Icon, type IconName } from './ui/components/icons'
 import { ComposePage } from './ui/pages/ComposePage'
@@ -50,7 +50,7 @@ export default function App() {
   }, [])
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <StoreProvider onToast={showToast}>
         <div className="app">
           <ScrollToTop />
@@ -75,6 +75,6 @@ export default function App() {
           {toast}
         </div>
       )}
-    </BrowserRouter>
+    </HashRouter>
   )
 }
