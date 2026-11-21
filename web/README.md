@@ -16,11 +16,17 @@ npm run build:html  # 빌드 후 저장소 루트 index.html도 갱신
 
 ## 배포
 
-빌드 결과는 `dist/index.html` 한 파일이고 주소는 `#/` 방식이라, 어떤 정적 호스팅에 올려도 별도 설정 없이 동작합니다.
+**지금 배포된 주소:** https://ourhome-today.kimyj-financetest.workers.dev (Cloudflare Workers)
 
-- **Vercel**: 새 프로젝트 → 이 저장소 → Root Directory를 `web`으로 지정 → Deploy (`vercel.json`에 설정 포함)
-- **Cloudflare Pages**: 새 프로젝트 → 이 저장소 → Root directory `web`, Build command `npm run build`, Output `dist`
-- **Cloudflare Workers**: `cd web && npm run build && npx wrangler deploy` (`wrangler.jsonc` 사용)
+다시 배포할 때:
+
+```bash
+npm run deploy
+```
+
+빌드한 `dist/index.html`을 Worker(`worker/index.js`) 안에 넣어 그대로 돌려주는 방식입니다. Cloudflare 로그인(`npx wrangler login`) 또는 `CLOUDFLARE_API_TOKEN` 환경 변수가 필요합니다.
+
+다른 곳에 올릴 때는 `index.html` 한 파일만 올리면 됩니다 (Vercel, Cloudflare Pages 끌어다 놓기 등). 주소는 `#/` 방식이라 별도 설정이 필요 없습니다.
 
 ## 구조
 

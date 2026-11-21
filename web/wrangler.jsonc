@@ -1,10 +1,10 @@
-// Cloudflare Workers(정적 자산) 배포 설정: `npm run build && npx wrangler deploy`
-// Cloudflare Pages 대시보드로 배포할 때는 이 파일 없이 빌드 명령 `npm run build`, 출력 폴더 `dist`만 지정하면 됩니다.
+// Cloudflare Workers 배포 설정: `npm run deploy` (= 빌드 후 wrangler deploy)
+// 빌드 결과 dist/index.html 한 파일을 Worker 안에 넣어 그대로 돌려준다.
 {
   "name": "ourhome-today",
+  "main": "worker/index.js",
   "compatibility_date": "2025-01-01",
-  "assets": {
-    "directory": "./dist",
-    "not_found_handling": "single-page-application"
-  }
+  "workers_dev": true,
+  "preview_urls": false,
+  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }]
 }
