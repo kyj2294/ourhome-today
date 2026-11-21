@@ -138,9 +138,21 @@ describe('오늘 함께할 일', () => {
 })
 
 describe('구성원', () => {
+  it('전화번호를 등록하고 잘못된 번호는 거절한다', () => {
+    expect(run(R.setMemberPhone(s, MOM, '010-1234-5678')).ok).toBe(true)
+    expect(s.members.find((m) => m.id === MOM)!.phone).toBe('010-1234-5678')
+    expect(R.setMemberPhone(s, MOM, '12').ok).toBe(false)
+  })
+
+  it('샘플 가족은 부모님 2명, 자녀 2명이다', () => {
+    expect(s.members.filter((m) => m.role === 'parent').map((m) => m.name)).toEqual(['엄마', '아빠'])
+    expect(s.members.filter((m) => m.role === 'child').map((m) => m.name)).toEqual(['민수', '지은'])
+  })
+
   it('가족을 추가할 수 있고 같은 이름은 거절한다', () => {
-    expect(run(R.addMember(s, ctx, '할머니', '외할머니')).ok).toBe(true)
+    expect(run(R.addMember(s, ctx, '할머니', '외할머니', 'parent')).ok).toBe(true)
     expect(s.members).toHaveLength(5)
-    expect(R.addMember(s, ctx, '할머니', '').ok).toBe(false)
+    expect(s.members[4].role).toBe('parent')
+    expect(R.addMember(s, ctx, '할머니', '', 'parent').ok).toBe(false)
   })
 })

@@ -15,6 +15,7 @@ import {
   type NotificationTarget,
   type Post,
   type PurchaseSpec,
+  type Role,
   type SchedulePlan,
   isRequestActive,
   nameOf,
@@ -91,12 +92,22 @@ export function switchUser(s: FamilyState, memberId: string): Outcome {
 
 const COLORS = ['#e57373', '#64b5f6', '#81c784', '#ba68c8', '#ffb74d', '#4db6ac', '#f06292', '#90a4ae']
 
-export function addMember(s: FamilyState, ctx: Ctx, name: string, relation: string): Outcome {
+export function addMember(s: FamilyState, ctx: Ctx, name: string, relation: string, role: Role): Outcome {
   const n = name.trim()
   if (!n) return reject('이름을 적어 주세요.')
   if (s.members.some((m) => m.name === n)) return reject('같은 이름의 가족이 이미 있어요.')
-  const member = { id: ctx.newId('m'), name: n, relation: relation.trim(), color: COLORS[s.members.length % COLORS.length] }
+  const member = { id: ctx.newId('m'), role, name: n, relation: relation.trim(), color: COLORS[s.members.length % COLORS.length] }
   return { ok: true, state: { ...s, members: [...s.members, member] }, id: member.id }
+}
+
+export function setMemberPhone(s: FamilyState, memberId: string, phone: string): Outcome {
+  const digits = phone.replace(/[^0-9+]/g, '')
+  if (digits && digits.replace('+', '').length < 8) return reject('전화번호를 다시 확인해 주세요.')
+  if (!s.members.some((m) => m.id === memberId)) return reject('가족 구성원을 찾을 수 없어요.')
+  return {
+    ok: true,
+    state: { ...s, members: s.members.map((m) => (m.id === memberId ? { ...m, phone: phone.trim() || undefined } : m)) },
+  }
 }
 
 export function renameFamily(s: FamilyState, name: string): Outcome {

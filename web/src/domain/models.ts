@@ -12,13 +12,21 @@
  * - 일정 시작(startAt): 로컬 시각 'YYYY-MM-DDTHH:mm'
  */
 
+/** 부모님 / 자녀 — 화면 구성(쉬운 화면 vs 전체 기능)을 정한다. 규칙상 권한은 같다. */
+export type Role = 'parent' | 'child'
+
+export const ROLE_LABEL: Record<Role, string> = { parent: '부모님', child: '자녀' }
+
 export interface Member {
   id: string
+  role: Role
   /** 가족 안에서 부르는 이름 (예: 엄마, 민수) */
   name: string
-  /** 관계 설명 (예: 어머니, 아들). 권한과 무관하다. */
+  /** 관계 설명 (예: 어머니, 아들) */
   relation: string
   color: string
+  /** 바로 전화하기에 쓰는 번호 (선택) */
+  phone?: string
 }
 
 export interface Comment {

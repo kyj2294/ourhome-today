@@ -6,7 +6,7 @@ export const DAD = 'm_dad'
 export const MINSU = 'm_minsu'
 export const JIEUN = 'm_jieun'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 /**
  * 시연용 샘플 데이터. 기획서의 '정수기 필터 부탁' 이용 흐름을 재현한다.
@@ -24,10 +24,10 @@ export function sampleState(now: Date = new Date()): FamilyState {
     inviteCode: 'OURHOME-2026',
     currentUserId: MINSU,
     members: [
-      { id: MOM, name: '엄마', relation: '어머니', color: '#e57373' },
-      { id: DAD, name: '아빠', relation: '아버지', color: '#64b5f6' },
-      { id: MINSU, name: '민수', relation: '아들', color: '#81c784' },
-      { id: JIEUN, name: '지은', relation: '딸', color: '#ba68c8' },
+      { id: MOM, role: 'parent', name: '엄마', relation: '어머니', color: '#e57373', phone: '010-0000-0001' },
+      { id: DAD, role: 'parent', name: '아빠', relation: '아버지', color: '#64b5f6', phone: '010-0000-0002' },
+      { id: MINSU, role: 'child', name: '민수', relation: '아들', color: '#81c784', phone: '010-0000-0003' },
+      { id: JIEUN, role: 'child', name: '지은', relation: '딸', color: '#ba68c8', phone: '010-0000-0004' },
     ],
     posts: [
       // 1) 그냥 일상 소식 — 부탁이나 알림을 만들지 않는다.
