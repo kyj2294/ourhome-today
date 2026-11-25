@@ -1,27 +1,18 @@
-import { del, get, set } from 'idb-keyval'
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { FamilyState } from '../domain/models'
 import { type Ctx, type Outcome, fireDueRoutines } from '../domain/rules'
 import { SCHEMA_VERSION, sampleState } from '../domain/sample'
+import { fetchFamily, logout as apiLogout, myMemberId, notifySaved, saveFamily, subscribeFamily, uploadPhoto } from '../remote/api'
+import { type Pending, applyPending, makeReplayCtx } from '../remote/sync'
 
 /**
- * 앱 상태 저장소 (프로토타입)
+ * 앱 상태 저장소 — Supabase에 가족 문서 하나를 두고 가족 모두가 함께 쓴다.
  *
- * - 데이터는 이 브라우저의 IndexedDB에 저장된다. 새로고침해도 유지되지만, 다른 기기와는 공유되지 않는다.
- * - "이 기기를 쓰는 사람"은 처음 화면에서 고르고 localStorage에 기억한다.
- *   탭마다 다른 사람으로 바꿀 수도 있다(sessionStorage) → 탭 두 개를 엄마·민수로 열면 실시간 동기화된다.
- * - 서버를 붙일 때는 이 파일만 바꾸면 된다. 규칙(domain/rules.ts)은 그대로 재사용한다.
+ * - 로그인: 정해진 계정 4개 (엄마·아빠·민수·지은)
+ * - 화면 상태 = 서버가 확인한 상태 + 아직 저장 안 된 내 행동들 (누르면 바로 반영되어 보인다)
+ * - 저장은 버전 확인 후에만. 다른 기기가 먼저 저장했으면 최신 상태를 받아 내 행동을 다시 얹는다.
+ * - 다른 기기의 변경은 실시간으로 받는다 (+30초마다, 앱으로 돌아올 때 한 번 더 확인)
  */
-
-const DB_KEY = 'ourhome-today/state'
-const TAB_USER_KEY = 'ourhome-today/current-user'
-const DEVICE_USER_KEY = 'ourhome-today/device-user'
-const CHANNEL = 'ourhome-today'
-
-const ctx: Ctx = {
-  now: () => new Date().toISOString(),
-  newId: (prefix) => `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
-}
 
 type Action = (s: FamilyState, ctx: Ctx) => Outcome
 
@@ -30,161 +21,193 @@ interface Store {
   /** 규칙을 실행한다. 거절이면 사유를, 성공이면 success 문구를 토스트로 띄운다. */
   run: (action: Action, success?: string) => Outcome
   toast: (message: string) => void
+  /** 가족 데이터를 샘플로 되돌린다 (모든 가족에게 적용) */
   resetDemo: () => Promise<void>
-  /** 처음 화면에서 누구인지 골랐는지 */
-  signedIn: boolean
-  signIn: (memberId: string) => void
-  /** 처음 화면(부모님/자녀 선택)으로 돌아간다 */
-  signOut: () => void
+  /** 사진을 올리고 보기 링크를 받는다 */
+  uploadImage: (dataUrl: string) => Promise<string>
+  signOut: () => Promise<void>
+  /** 아직 저장 중인 변경이 있는지 */
+  saving: boolean
 }
 
 const StoreContext = createContext<Store | null>(null)
 
-function readKey(store: () => Storage, key: string): string | null {
-  try {
-    return store().getItem(key)
-  } catch {
-    return null
-  }
-}
-function writeKey(store: () => Storage, key: string, value: string | null) {
-  try {
-    if (value === null) store().removeItem(key)
-    else store().setItem(key, value)
-  } catch {
-    /* 저장 불가 환경은 무시 */
-  }
-}
-const session = () => sessionStorage
-const local = () => localStorage
+const isFamilyState = (s: unknown): s is FamilyState => !!s && typeof s === 'object' && (s as FamilyState).schema === SCHEMA_VERSION
 
-/** 이 탭(없으면 이 기기)에서 고른 사람. 지워진 구성원이면 null */
-function chosenUser(s: FamilyState): string | null {
-  const id = readKey(session, TAB_USER_KEY) ?? readKey(local, DEVICE_USER_KEY)
-  return id && s.members.some((m) => m.id === id) ? id : null
-}
+export function StoreProvider({
+  children,
+  onToast,
+  login,
+}: {
+  children: ReactNode
+  onToast: (m: string) => void
+  /** 로그인 화면. 로그인에 성공하면 onLogin(memberId)을 부른다. */
+  login: (onLogin: (memberId: string) => Promise<void>) => ReactNode
+}) {
+  const [memberId, setMemberId] = useState<string | null | undefined>(undefined) // undefined = 확인 중
+  const [view, setView] = useState<FamilyState | null>(null)
+  const [saving, setSaving] = useState(false)
+  const confirmed = useRef<{ state: FamilyState; version: number } | null>(null)
+  const pending = useRef<Pending[]>([])
+  const flushing = useRef(false)
+  const me = useRef<string>('')
 
-export function StoreProvider({ children, onToast }: { children: ReactNode; onToast: (m: string) => void }) {
-  const [state, setState] = useState<FamilyState | null>(null)
-  const ref = useRef<FamilyState | null>(null)
-  const channel = useRef<BroadcastChannel | null>(null)
-  const warnedSave = useRef(false)
-  const [signedIn, setSignedIn] = useState(false)
-
-  const commit = useCallback((next: FamilyState, broadcast = true) => {
-    ref.current = next
-    setState(next)
-    set(DB_KEY, next).catch(() => {
-      if (warnedSave.current) return
-      warnedSave.current = true
-      onToast('이 브라우저에서는 저장이 안 돼요. 새로고침하면 처음 상태로 돌아가요.')
-    })
-    if (broadcast) channel.current?.postMessage(next)
-  }, [onToast])
-
-  // 처음 불러오기 + 다른 탭과 동기화
-  useEffect(() => {
-    let alive = true
-    get<FamilyState>(DB_KEY)
-      .catch(() => undefined)
-      .then((saved) => {
-        if (!alive) return
-        const base = saved && saved.schema === SCHEMA_VERSION ? saved : sampleState()
-        const mine = chosenUser(base)
-        const s = mine ? { ...base, currentUserId: mine } : base
-        ref.current = s
-        setState(s)
-        setSignedIn(!!mine)
-        if (!saved) set(DB_KEY, s).catch(() => undefined)
-      })
-
-    if ('BroadcastChannel' in window) {
-      const bc = new BroadcastChannel(CHANNEL)
-      bc.onmessage = (e: MessageEvent<FamilyState>) => {
-        const mine = ref.current?.currentUserId
-        const incoming = e.data
-        const next = mine && incoming.members.some((m) => m.id === mine) ? { ...incoming, currentUserId: mine } : incoming
-        ref.current = next
-        setState(next)
-      }
-      channel.current = bc
-    }
-    return () => {
-      alive = false
-      channel.current?.close()
-    }
+  const refresh = useCallback(() => {
+    if (!confirmed.current) return
+    setView(applyPending(confirmed.current.state, pending.current, me.current))
+    setSaving(pending.current.length > 0)
   }, [])
+
+  /** 서버에서 받은 상태 반영 (더 최신일 때만) */
+  const receive = useCallback(
+    (state: FamilyState, version: number) => {
+      if (confirmed.current && version <= confirmed.current.version) return
+      confirmed.current = { state, version }
+      refresh()
+    },
+    [refresh],
+  )
+
+  /** 대기 중인 행동을 하나씩 저장 */
+  const flush = useCallback(async () => {
+    if (flushing.current) return
+    flushing.current = true
+    try {
+      let conflicts = 0
+      while (pending.current.length && confirmed.current) {
+        const base = confirmed.current
+        const next = applyPending(base.state, pending.current.slice(0, 1), me.current)
+        try {
+          const v = await saveFamily(next, base.version)
+          if (v === null) {
+            // 다른 기기가 먼저 저장 → 최신 상태를 받고 같은 행동을 다시 얹는다
+            const row = await fetchFamily()
+            if (isFamilyState(row.state)) confirmed.current = { state: row.state, version: row.version }
+            refresh()
+            if (++conflicts > 5) throw new Error('conflict')
+            continue
+          }
+          confirmed.current = { state: next, version: v }
+          pending.current = pending.current.slice(1)
+          notifySaved(v)
+          conflicts = 0
+          refresh()
+        } catch {
+          onToast('저장하지 못했어요. 인터넷 연결을 확인해 주세요. 잠시 후 다시 시도해요.')
+          window.setTimeout(() => void flush(), 5000)
+          return
+        }
+      }
+    } finally {
+      flushing.current = false
+    }
+  }, [onToast, refresh])
+
+  /** 로그인 후 가족 문서 불러오기 (비어 있으면 샘플 가족으로 시작) */
+  const load = useCallback(
+    async (id: string) => {
+      me.current = id
+      const row = await fetchFamily()
+      if (isFamilyState(row.state)) {
+        confirmed.current = { state: row.state, version: row.version }
+      } else {
+        const fresh = sampleState()
+        const v = await saveFamily(fresh, row.version)
+        const latest = v === null ? await fetchFamily() : { state: fresh, version: v }
+        confirmed.current = { state: latest.state as FamilyState, version: latest.version }
+      }
+      pending.current = []
+      refresh()
+      setMemberId(id)
+    },
+    [refresh],
+  )
+
+  // 처음: 이미 로그인돼 있는지 확인
+  useEffect(() => {
+    myMemberId()
+      .then((id) => (id ? load(id) : setMemberId(null)))
+      .catch(() => setMemberId(null))
+  }, [load])
+
+  // 로그인 상태에서: 실시간 구독 + 주기 확인 + 자동 안부
+  useEffect(() => {
+    if (!memberId) return
+    const pull = () =>
+      fetchFamily()
+        .then((row) => {
+          if (isFamilyState(row.state)) receive(row.state, row.version)
+        })
+        .catch(() => undefined)
+    const ch = subscribeFamily((row) => {
+      if (isFamilyState(row.state)) receive(row.state, row.version)
+    }, pull)
+    const tick = () => {
+      void pull()
+      if (!confirmed.current) return
+      const ctx = makeReplayCtx()
+      const now = new Date()
+      const o = fireDueRoutines(applyPending(confirmed.current.state, pending.current, me.current), ctx, now)
+      if (o.ok && o.id !== '0') {
+        pending.current = [...pending.current, { action: (s, c) => fireDueRoutines(s, c, now), ctx }]
+        refresh()
+        void flush()
+      }
+    }
+    const first = window.setTimeout(tick, 1500)
+    const timer = window.setInterval(tick, 30_000)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') tick()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      void ch.unsubscribe()
+      window.clearTimeout(first)
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [memberId, receive, refresh, flush])
 
   const run = useCallback(
     (action: Action, success?: string): Outcome => {
-      const current = ref.current
-      if (!current) return { ok: false, message: '불러오는 중이에요.' }
+      if (!confirmed.current) return { ok: false, message: '불러오는 중이에요.' }
+      const ctx = makeReplayCtx()
+      const current = applyPending(confirmed.current.state, pending.current, me.current)
       const outcome = action(current, ctx)
       if (outcome.ok) {
-        if (outcome.state !== current) commit(outcome.state, true)
+        if (outcome.state !== current) {
+          pending.current = [...pending.current, { action, ctx }]
+          refresh()
+          void flush()
+        }
         if (success) onToast(success)
       } else {
         onToast(outcome.message)
       }
       return outcome
     },
-    [commit, onToast],
+    [flush, onToast, refresh],
   )
-
-  // 자동 안부: 열 때, 30초마다, 다시 돌아왔을 때 시간이 된 것을 보낸다.
-  // (실제 서비스에서는 서버가 정한 시각에 푸시로 보낸다)
-  const loaded = state !== null
-  useEffect(() => {
-    if (!loaded) return
-    const tick = () => {
-      const current = ref.current
-      if (!current) return
-      const o = fireDueRoutines(current, ctx, new Date())
-      if (o.ok && o.state !== current) commit(o.state, true)
-    }
-    tick()
-    const timer = window.setInterval(tick, 30_000)
-    const onVisible = () => document.visibilityState === 'visible' && tick()
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      window.clearInterval(timer)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
-  }, [loaded, commit])
 
   const resetDemo = useCallback(async () => {
-    await del(DB_KEY).catch(() => undefined)
     const fresh = sampleState()
-    commit(fresh)
-    onToast('샘플 데이터로 처음부터 다시 시작해요')
-  }, [commit, onToast])
+    run(() => ({ ok: true, state: fresh }), '가족 데이터를 처음 상태로 되돌렸어요')
+  }, [run])
 
-  const signIn = useCallback(
-    (memberId: string) => {
-      const current = ref.current
-      if (!current || !current.members.some((m) => m.id === memberId)) return
-      writeKey(session, TAB_USER_KEY, memberId)
-      writeKey(local, DEVICE_USER_KEY, memberId)
-      const next = { ...current, currentUserId: memberId }
-      ref.current = next
-      setState(next)
-      setSignedIn(true)
-    },
-    [],
-  )
+  const uploadImage = useCallback((dataUrl: string) => uploadPhoto(dataUrl), [])
 
-  const signOut = useCallback(() => {
-    writeKey(session, TAB_USER_KEY, null)
-    writeKey(local, DEVICE_USER_KEY, null)
-    setSignedIn(false)
+  const signOut = useCallback(async () => {
+    await apiLogout()
+    confirmed.current = null
+    pending.current = []
+    setView(null)
+    setMemberId(null)
   }, [])
 
-  if (!state) {
-    return <div className="splash">우리집 오늘</div>
-  }
-  return (
-    <StoreContext.Provider value={{ state, run, toast: onToast, resetDemo, signedIn, signIn, signOut }}>{children}</StoreContext.Provider>
-  )
+  if (memberId === undefined) return <div className="splash">우리집 오늘</div>
+  if (memberId === null) return <>{login(load)}</>
+  if (!view) return <div className="splash">불러오는 중…</div>
+  return <StoreContext.Provider value={{ state: view, run, toast: onToast, resetDemo, uploadImage, signOut, saving }}>{children}</StoreContext.Provider>
 }
 
 export function useStore(): Store {

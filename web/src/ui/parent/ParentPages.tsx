@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { upcomingSchedules } from '../../domain/calendar'
-import { formatDateTime, formatRelative, todayKey } from '../../domain/dates'
+import { useNavigate, useParams } from 'react-router-dom'
+import { formatDateTime, formatRelative } from '../../domain/dates'
 import { josa } from '../../domain/korean'
 import {
   type Availability,
@@ -19,8 +18,6 @@ import * as R from '../../domain/rules'
 import { compressImage } from '../../store/images'
 import { useStore } from '../../store/store'
 import { Avatar, Photo } from '../components/common'
-import { CallButton } from '../components/call'
-import { ParentQuestionAsk } from '../components/questions'
 
 /*
  * 부모님 화면 — 어르신이 쓰기 쉽게
@@ -36,16 +33,7 @@ const ANSWERS: { a: Availability; label: string }[] = [
 ]
 const ANSWER_LABEL: Record<Availability, string> = { AVAILABLE: '좋아요', RESCHEDULE: '다른 시간이 좋아요', UNAVAILABLE: '이번엔 어려워요' }
 
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
-const TIP_KEY = 'ourhome-today/parent-tip-dismissed'
 
-function readTip(): boolean {
-  try {
-    return localStorage.getItem(TIP_KEY) === '1'
-  } catch {
-    return false
-  }
-}
 
 /** 부모님이 이해하기 쉬운 부탁 상태 문장 */
 function plainStatus(r: FamilyRequest, s: FamilyState): string {
@@ -64,136 +52,7 @@ function plainStatus(r: FamilyRequest, s: FamilyState): string {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 부모님 첫 화면
-// ---------------------------------------------------------------------------
-
-export function ParentHome() {
-  const { state, signOut } = useStore()
-  const me = state.currentUserId
-  const meName = nameOf(state, me)
-  const today = todayKey()
-  const now = new Date()
-  const [tipHidden, setTipHidden] = useState(readTip)
-
-  const askSchedules = state.schedules.filter((p) => !p.canceled && p.audienceIds.includes(me) && p.startAt.slice(0, 10) >= today)
-  const askRequests = state.requests.filter(
-    (r) => r.requesterId !== me && r.audienceIds.includes(me) && (r.status === 'OPEN' || (r.assigneeId === me && (r.status === 'CLAIMED' || r.status === 'IN_PROGRESS'))),
-  )
-  const askQuestions = state.questions.filter((q) => q.targetIds.includes(me)).slice(0, 5)
-  const myRequests = state.requests.filter((r) => r.requesterId === me && r.status !== 'CANCELED').slice(0, 5)
-  const posts = [...state.posts].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10)
-  const family = state.members.filter((m) => m.id !== me)
-  const upcoming = upcomingSchedules(state, today)
-
-  return (
-    <main className="p-home">
-      <header className="p-hello">
-        <h1>{meName}, 안녕하세요</h1>
-        <p>
-          {now.getMonth() + 1}월 {now.getDate()}일 {WEEKDAYS[now.getDay()]}요일
-        </p>
-      </header>
-
-      {!tipHidden && (
-        <section className="p-card p-tip">
-          <b>처음이세요?</b>
-          <p>
-            ① 가족이 물어보면 <b>큰 버튼 하나</b>만 누르세요.
-            <br />② 사진은 아래 <b>"사진 보내기"</b>로 보내요.
-            <br />③ 필요한 게 있으면 <b>"부탁하기"</b>를 누르세요.
-          </p>
-          <button
-            className="p-btn p-btn-soft"
-            onClick={() => {
-              try {
-                localStorage.setItem(TIP_KEY, '1')
-              } catch {
-                /* 무시 */
-              }
-              setTipHidden(true)
-            }}
-          >
-            알겠어요
-          </button>
-        </section>
-      )}
-
-      <h2 className="p-section">📞 전화하기</h2>
-      <div className="p-call-grid">
-        {family.map((m) => (
-          <CallButton key={m.id} memberId={m.id} label={m.name} className="p-call" />
-        ))}
-      </div>
-
-      {(askQuestions.length > 0 || askSchedules.length > 0 || askRequests.length > 0) && <h2 className="p-section">🙋 답해 주세요</h2>}
-      {askQuestions.map((q) => (
-        <ParentQuestionAsk key={q.id} q={q} s={state} />
-      ))}
-      {askSchedules.map((p) => (
-        <ScheduleAsk key={p.id} p={p} s={state} />
-      ))}
-      {askRequests.map((r) => (
-        <RequestAsk key={r.id} r={r} s={state} />
-      ))}
-
-      {upcoming.length > 0 && (
-        <>
-          <h2 className="p-section">📅 다가오는 가족 일정</h2>
-          <section className="p-card p-upcoming">
-            {upcoming.map((p) => (
-              <div key={p.id} className="p-up-row">
-                <div className="p-up-when">{formatDateTime(p.startAt)}</div>
-                <div className="p-up-title">
-                  {p.title}
-                  {p.place && <span className="p-muted"> · {p.place}</span>}
-                </div>
-                <div className={`p-up-status ${p.confirmed ? 'ok' : ''}`}>{p.confirmed ? '정해졌어요' : '아직 정하는 중'}</div>
-              </div>
-            ))}
-          </section>
-        </>
-      )}
-
-      {myRequests.length > 0 && <h2 className="p-section">🙏 내가 부탁한 것</h2>}
-      {myRequests.map((r) => (
-        <MyRequest key={r.id} r={r} s={state} />
-      ))}
-
-      <h2 className="p-section">📷 가족 소식</h2>
-      {posts.map((post) => (
-        <Link key={post.id} to={`/post/${post.id}`} className="p-card p-post">
-          <div className="p-post-head">
-            <Avatar member={memberOf(state, post.authorId)} size={48} />
-            <div>
-              <b>{nameOf(state, post.authorId)}</b>
-              <div className="p-muted">{formatRelative(post.createdAt)}</div>
-            </div>
-          </div>
-          {post.photos[0] && <Photo src={post.photos[0]} className="p-photo" />}
-          {post.photos.length > 1 && <div className="p-muted">사진 {post.photos.length}장</div>}
-          {post.text && <p className="p-text">{post.text}</p>}
-          {post.comments.length > 0 && <div className="p-muted">💬 댓글 {post.comments.length}개</div>}
-        </Link>
-      ))}
-
-      <button className="p-switch" onClick={signOut}>
-        다른 사람으로 바꾸기
-      </button>
-
-      <nav className="p-actions">
-        <Link to="/compose" className="p-btn p-btn-primary">
-          📷 사진 보내기
-        </Link>
-        <Link to="/request/new" className="p-btn p-btn-dark">
-          🙏 부탁하기
-        </Link>
-      </nav>
-    </main>
-  )
-}
-
-function ScheduleAsk({ p, s }: { p: SchedulePlan; s: FamilyState }) {
+export function ScheduleAsk({ p, s }: { p: SchedulePlan; s: FamilyState }) {
   const { run } = useStore()
   const me = s.currentUserId
   const answered = currentResponse(p, me)
@@ -241,7 +100,7 @@ function ScheduleAsk({ p, s }: { p: SchedulePlan; s: FamilyState }) {
   )
 }
 
-function RequestAsk({ r, s }: { r: FamilyRequest; s: FamilyState }) {
+export function RequestAsk({ r, s }: { r: FamilyRequest; s: FamilyState }) {
   const { run } = useStore()
   const who = nameOf(s, r.requesterId)
   const mine = r.assigneeId === s.currentUserId
@@ -270,7 +129,7 @@ function RequestAsk({ r, s }: { r: FamilyRequest; s: FamilyState }) {
   )
 }
 
-function MyRequest({ r, s }: { r: FamilyRequest; s: FamilyState }) {
+export function MyRequest({ r, s }: { r: FamilyRequest; s: FamilyState }) {
   const { run } = useStore()
   return (
     <section className={`p-card ${r.status === 'DONE' ? 'p-done' : ''}`}>
@@ -303,7 +162,7 @@ function BackBar({ title }: { title: string }) {
 // ---------------------------------------------------------------------------
 
 export function ParentCompose() {
-  const { run, toast } = useStore()
+  const { run, toast, uploadImage } = useStore()
   const navigate = useNavigate()
   const [photos, setPhotos] = useState<string[]>([])
   const [text, setText] = useState('')
@@ -314,7 +173,7 @@ export function ParentCompose() {
     if (!files) return
     setBusy(true)
     try {
-      const urls = await Promise.all(Array.from(files).filter((f) => f.type.startsWith('image/')).slice(0, 5 - photos.length).map((f) => compressImage(f)))
+      const urls = await Promise.all(Array.from(files).filter((f) => f.type.startsWith('image/')).slice(0, 5 - photos.length).map((f) => compressImage(f).then(uploadImage)))
       setPhotos((p) => [...p, ...urls].slice(0, 5))
     } catch {
       toast('사진을 불러오지 못했어요')

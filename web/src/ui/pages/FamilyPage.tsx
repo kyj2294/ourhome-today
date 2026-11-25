@@ -92,14 +92,14 @@ export function FamilyPage() {
           <li>가족 소식 사이에 쇼핑 광고를 끼워 넣지 않아요.</li>
         </ul>
 
-        <h3 className="section">이 기기</h3>
-        <p className="hint">지금은 서버 없이 이 브라우저에만 저장돼요. 다른 기기와는 공유되지 않아요.</p>
+        <h3 className="section">계정</h3>
+        <p className="hint">가족 모두의 기기에 실시간으로 함께 저장돼요 (Supabase).</p>
         <div className="row gap8">
           <button className="btn btn-outline grow" onClick={signOut}>
-            사용자 바꾸기
+            로그아웃 (다른 사람으로)
           </button>
-          <button className="btn btn-text danger" onClick={() => confirm('모든 데이터를 지우고 샘플로 되돌릴까요?') && resetDemo()}>
-            샘플로 초기화
+          <button className="btn btn-text danger" onClick={() => confirm('가족 모두의 데이터가 샘플로 되돌아가요. 할까요?') && resetDemo()}>
+            가족 데이터 처음으로
           </button>
         </div>
       </main>

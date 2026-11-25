@@ -20,7 +20,7 @@ const OPTIONS: { key: Next; label: string; desc: string }[] = [
  * 글쓴이가 원할 때만 '일정 제안'이나 '가족에게 부탁'으로 이어간다.
  */
 export function ComposePage() {
-  const { run, toast } = useStore()
+  const { run, toast, uploadImage } = useStore()
   const navigate = useNavigate()
   const [text, setText] = useState('')
   const [photos, setPhotos] = useState<string[]>([])
@@ -33,7 +33,7 @@ export function ComposePage() {
     setBusy(true)
     try {
       const picked = Array.from(files).filter((f) => f.type.startsWith('image/')).slice(0, MAX_PHOTOS - photos.length)
-      const urls = await Promise.all(picked.map((f) => compressImage(f)))
+      const urls = await Promise.all(picked.map((f) => compressImage(f).then(uploadImage)))
       setPhotos((p) => [...p, ...urls].slice(0, MAX_PHOTOS))
     } catch {
       toast('사진을 불러오지 못했어요')

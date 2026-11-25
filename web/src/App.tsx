@@ -4,14 +4,15 @@ import { memberOf } from './domain/models'
 import { StoreProvider, useStore } from './store/store'
 import { CallProvider } from './ui/components/call'
 import { Icon, type IconName } from './ui/components/icons'
-import { ParentCompose, ParentHome, ParentPost, ParentRequest } from './ui/parent/ParentPages'
+import { ParentChat } from './ui/parent/ParentChat'
+import { ParentCompose, ParentPost, ParentRequest } from './ui/parent/ParentPages'
 import { CalendarPage } from './ui/pages/CalendarPage'
 import { CallNotePage } from './ui/pages/CallNotePage'
 import { ComposePage } from './ui/pages/ComposePage'
 import { FamilyPage } from './ui/pages/FamilyPage'
 import { FeedPage } from './ui/pages/FeedPage'
 import { NotificationsPage } from './ui/pages/NotificationsPage'
-import { OnboardingPage } from './ui/pages/OnboardingPage'
+import { LoginPage } from './ui/pages/LoginPage'
 import { PostDetailPage } from './ui/pages/PostDetailPage'
 import { RequestDetailPage, RequestFormPage } from './ui/pages/RequestPages'
 import { RoutinesPage } from './ui/pages/RoutinesPage'
@@ -79,7 +80,7 @@ function ParentApp() {
   return (
     <div className="app parent">
       <Routes>
-        <Route path="/" element={<ParentHome />} />
+        <Route path="/" element={<ParentChat />} />
         <Route path="/compose" element={<ParentCompose />} />
         <Route path="/request/new" element={<ParentRequest />} />
         <Route path="/post/:id" element={<ParentPost />} />
@@ -87,21 +88,14 @@ function ParentApp() {
         {/* 알림 링크 등으로 들어온 상세 화면은 자녀 화면 것을 큰 글씨로 보여준다 */}
         <Route path="/request/:id" element={<RequestDetailPage />} />
         <Route path="/schedule/:id" element={<ScheduleDetailPage />} />
-        <Route path="*" element={<ParentHome />} />
+        <Route path="*" element={<ParentChat />} />
       </Routes>
     </div>
   )
 }
 
 function Shell() {
-  const { state, signedIn } = useStore()
-  if (!signedIn) {
-    return (
-      <div className="app">
-        <OnboardingPage />
-      </div>
-    )
-  }
+  const { state } = useStore()
   const role = memberOf(state, state.currentUserId)?.role ?? 'child'
   return <CallProvider>{role === 'parent' ? <ParentApp /> : <ChildApp />}</CallProvider>
 }
@@ -118,7 +112,14 @@ export default function App() {
   return (
     <HashRouter>
       <ScrollToTop />
-      <StoreProvider onToast={showToast}>
+      <StoreProvider
+        onToast={showToast}
+        login={(onLogin) => (
+          <div className="app">
+            <LoginPage onLogin={onLogin} />
+          </div>
+        )}
+      >
         <Shell />
       </StoreProvider>
       {toast && (

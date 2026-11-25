@@ -69,7 +69,7 @@ export function MessageCard({
  * 취소 · Aa(글씨 스타일) · 확인 / 카드 위에 바로 글쓰기 / ‹ › 와 아래 줄로 디자인 고르기 / 📷 내 사진
  */
 export function CardEditor({ initial, onCancel, onConfirm }: { initial?: CardValue; onCancel: () => void; onConfirm: (v: CardValue) => void }) {
-  const { toast } = useStore()
+  const { toast, uploadImage } = useStore()
   const first = initial ?? { design: CARD_DESIGNS[0].id, message: CARD_DESIGNS[0].message }
   const [design, setDesign] = useState<CardDesign>(first.design)
   const [message, setMessage] = useState(first.message)
@@ -104,7 +104,7 @@ export function CardEditor({ initial, onCancel, onConfirm }: { initial?: CardVal
     if (!f) return
     setBusy(true)
     try {
-      const url = await compressImage(f, 1080, 0.8)
+      const url = await uploadImage(await compressImage(f, 1080, 0.8))
       setPhoto(url)
       if (message === cardOf(design)!.message) setMessage('')
       setTextStyle('box')
