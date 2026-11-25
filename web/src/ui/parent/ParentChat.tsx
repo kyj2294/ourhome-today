@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { upcomingSchedules } from '../../domain/calendar'
+import { eventsOnDay, upcomingSchedules } from '../../domain/calendar'
 import { formatDate, formatDateTime, todayKey, toLocalDateTime } from '../../domain/dates'
 import { type FamilyState, type Post, describeTime, memberOf, nameOf } from '../../domain/models'
 import * as R from '../../domain/rules'
@@ -8,6 +8,7 @@ import { compressImage } from '../../store/images'
 import { useStore } from '../../store/store'
 import { CallButton } from '../components/call'
 import { Avatar, Photo } from '../components/common'
+import { MonthCalendar } from '../components/MonthCalendar'
 import { ParentQuestionAsk } from '../components/questions'
 import { MyRequest, RequestAsk, ScheduleAsk } from './ParentPages'
 
@@ -55,6 +56,7 @@ export function ParentChat() {
   const me = state.currentUserId
   const [text, setText] = useState('')
   const [sendingPhoto, setSendingPhoto] = useState(false)
+  const [calOpen, setCalOpen] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const bottom = useRef<HTMLDivElement>(null)
   const items = buildItems(state)
@@ -106,11 +108,22 @@ export function ParentChat() {
             <CallButton key={m.id} memberId={m.id} label={m.name} className="chat-call" />
           ))}
         </div>
-        {next && (
-          <div className="chat-pin">
-            📅 {formatDateTime(next.startAt)} · <b>{next.title}</b> {next.confirmed ? '(정해졌어요)' : ''}
-          </div>
-        )}
+        <button className={`chat-pin ${calOpen ? 'open' : ''}`} onClick={() => setCalOpen((v) => !v)} aria-expanded={calOpen}>
+          <span className="grow">
+            📅{' '}
+            {next ? (
+              <>
+                {formatDateTime(next.startAt)} · <b>{next.title}</b> {next.confirmed ? '(정해졌어요)' : ''}
+              </>
+            ) : (
+              '가족 달력 보기'
+            )}
+          </span>
+          <span className="chat-pin-toggle">{calOpen ? '접기 ▲' : '달력 ▼'}</span>
+        </button>
+        <div className={`chat-cal ${calOpen ? 'open' : ''}`}>
+          <div className="chat-cal-inner">{calOpen && <FamilyCalendar s={state} start={next?.startAt.slice(0, 10) ?? todayKey()} />}</div>
+        </div>
       </header>
 
       <main className="chat-list">
@@ -159,6 +172,40 @@ export function ParentChat() {
         )}
         <input ref={fileInput} type="file" accept="image/*" multiple hidden onChange={(e) => sendPhotos(e.target.files)} />
       </footer>
+    </div>
+  )
+}
+
+/** 부모님용 펼침 달력: 크게, 날짜를 누르면 그날 일정을 쉬운 말로 */
+function FamilyCalendar({ s, start }: { s: FamilyState; start: string }) {
+  const [selected, setSelected] = useState(start)
+  const day = eventsOnDay(s, selected)
+  return (
+    <div className="family-cal">
+      <MonthCalendar s={s} selected={selected} onSelect={setSelected} simple />
+      <div className="family-cal-day">
+        <b>{selected === todayKey() ? `오늘 · ${formatDate(selected)}` : formatDate(selected)}</b>
+        {day.schedules.length + day.requests.length === 0 && <p className="p-muted">이 날은 가족 일정이 없어요.</p>}
+        {day.schedules.map((p) => (
+          <div key={p.id} className="family-cal-item">
+            <span className="family-cal-time">{describeTime(p.startAt.slice(11, 16))}</span>
+            <span className="grow">
+              <b>{p.title}</b>
+              {p.place && <span className="p-muted"> · {p.place}</span>}
+              <span className={`family-cal-status ${p.confirmed ? 'ok' : ''}`}>{p.confirmed ? '정해졌어요' : '아직 정하는 중'}</span>
+            </span>
+          </div>
+        ))}
+        {day.requests.map((r) => (
+          <div key={r.id} className="family-cal-item">
+            <span className="family-cal-time">🙏 부탁</span>
+            <span className="grow">
+              <b>{r.title}</b>
+              <span className="family-cal-status">{nameOf(s, r.requesterId)}님 부탁 · 이 날까지</span>
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

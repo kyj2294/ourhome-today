@@ -682,3 +682,32 @@ code { background: var(--surface-2); padding: 2px 8px; border-radius: 6px; font-
 .chat-send { background: var(--primary); color: var(--on-primary); }
 .chat-ask { background: #3d2c22; color: #fff; }
 .app.parent:has(.chat) { max-width: var(--max); }
+
+/* ───────── 부모님 단톡방: 일정 줄 → 펼침 달력 ───────── */
+.chat-pin { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; cursor: pointer; }
+.chat-pin-toggle { flex: none; font-size: 15px; font-weight: 800; background: rgb(255 255 255 / 0.6); padding: 4px 10px; border-radius: 999px; }
+.chat-pin.open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.chat-cal { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.28s ease; }
+.chat-cal.open { grid-template-rows: 1fr; }
+.chat-cal-inner { overflow: hidden; }
+.chat-cal.open .chat-cal-inner { max-height: 68dvh; overflow-y: auto; }
+.family-cal { background: #fff8e0; border-radius: 0 0 16px 16px; padding: 10px 10px 14px; display: flex; flex-direction: column; gap: 12px; margin-top: -8px; }
+.month-cal { display: flex; flex-direction: column; gap: 10px; }
+.month-cal-simple .cal-head b { font-size: 22px; }
+.month-cal-simple .cal-week { font-size: 16px; }
+.month-cal-simple .cal-day { background: #fff; border-radius: 12px; aspect-ratio: 1 / 0.95; }
+.month-cal-simple .cal-num { font-size: 19px; }
+.month-cal-simple .cal-day.today .cal-num { width: 32px; height: 32px; }
+.month-cal-simple .cal-dots i { width: 9px; height: 9px; }
+.month-cal-simple .cal-legend { font-size: 15px; }
+.family-cal-day { display: flex; flex-direction: column; gap: 8px; font-size: 19px; }
+.family-cal-day > b { font-size: 21px; font-weight: 900; }
+.family-cal-item { display: flex; gap: 12px; align-items: flex-start; background: #fff; border-radius: 14px; padding: 12px 14px; }
+.family-cal-time { flex: none; font-weight: 900; color: var(--primary); min-width: 92px; }
+.family-cal-item .grow { display: flex; flex-direction: column; gap: 2px; }
+.family-cal-status { font-size: 16px; font-weight: 700; color: var(--muted); }
+.family-cal-status.ok { color: var(--on-green-soft); }
+/* 7칸이 화면 폭 안에 꼭 들어가게 (내용 폭 때문에 넘치지 않도록) */
+.cal-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cal-day { min-width: 0; }
+.month-cal-simple .cal-grid { gap: 3px; }
